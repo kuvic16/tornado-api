@@ -6,7 +6,6 @@ use DB;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Services\CaseCovidDbService;
 
 /**
  * Class ApiController
@@ -18,7 +17,7 @@ class ApiController extends Controller
     /**
      * Initialize the class
      */
-    public function __construct(CaseCovidDbService $_caseCovidDbService)
+    public function __construct()
     {
     }
 
