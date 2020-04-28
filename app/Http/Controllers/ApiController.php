@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ReportPullService;
 use DB;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
@@ -13,12 +14,18 @@ use Illuminate\Support\Facades\Log;
  */
 class ApiController extends Controller
 {
+    private $reportPullService;
 
     /**
      * Initialize the class
      */
-    public function __construct()
+    public function __construct(ReportPullService $reportPullService)
     {
+        $this->reportPullService = $reportPullService;
+    }
+
+    public function test(){
+        $this->reportPullService->run();
     }
 
     /**
@@ -308,6 +315,7 @@ class ApiController extends Controller
                     $skip = false;
                     $reports[$index]["distance"] = $minDistance;
                     $reports[$index]["range"] = $minBearing . "-" . $maxBearing;
+                    break;
                 }elseif($newMessage) {
                     if ($skip) continue;
                     else {
@@ -321,6 +329,7 @@ class ApiController extends Controller
                 }
 
             }
+            die;
             return $reports;
         }catch (\Exception $ex){
             Log::error('Error: ' . $ex->getMessage());

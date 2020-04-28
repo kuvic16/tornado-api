@@ -17,6 +17,7 @@ Route::get('/', function () {
         'version' => '1.0'
     ];
 });
+Route::get('/api/test', 'ApiController@test');
 Route::get('/api/v1/storm_reports', 'ApiController@stormReports');
 Route::get('/api/v1/tornado_warning', 'ApiController@tornadoWarning');
 Route::get('/api/v1/cimms_hail_probability', 'ApiController@cimmsHailProbability');
