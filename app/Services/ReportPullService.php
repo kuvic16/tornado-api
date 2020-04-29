@@ -108,6 +108,7 @@ class ReportPullService
                     $report->state = $obj->state;
                     $report->tornado = $obj->tornado;
                     $report->funnelcloud = $obj->funnelcloud;
+                    $report->wallcloud = $obj->wallcloud;
                     $report->hail = $obj->hail;
                     $report->hailsize = $obj->hailsize;
                     $report->remarks = $obj->narrative;

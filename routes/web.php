@@ -19,16 +19,4 @@ Route::get('/', function () {
 });
 //https://weathervision.app/api/v1/uid=(UID here),(lat),(lon)
 Route::get('/api/v1', 'ApiController@getReports');
-
 Route::get('/api/test', 'ApiController@test');
-Route::get('/api/v1/storm_reports', 'ApiController@stormReports');
-Route::get('/api/v1/tornado_warning', 'ApiController@tornadoWarning');
-Route::get('/api/v1/cimms_hail_probability', 'ApiController@cimmsHailProbability');
-Route::get('/api/v1/cimms_tornado_probability', 'ApiController@cimmsTornadoProbability');
-Route::get('/api/v1/cimms_wind_probability', 'ApiController@cimmsWindProbability');
-Route::get('/api/v1/stats', function(){
-    return[
-        'series' => 200,
-        'lessons' => 1300
-    ];
-});
