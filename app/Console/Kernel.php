@@ -5,13 +5,7 @@ namespace App\Console;
 use Carbon\Carbon;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-use App\Services\HubspotContactPullService;
-use App\Services\FacebookService;
-use App\Services\QuoraService;
-use App\Services\HubspotSuppressContactPullService;
-use App\Services\ReportService;
-use App\Services\ForecastVerificationMatrixService;
-use App\Services\HubspotDelinquentContactPullService;
+use App\Services\ReportPullService;
 
 class Kernel extends ConsoleKernel
 {
@@ -32,7 +26,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-
+        $schedule->call('App\Services\ReportPullService@run')->everyFiveMinutes();
     }
 
     /**
