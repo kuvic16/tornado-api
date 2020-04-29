@@ -160,7 +160,7 @@ class ApiController extends Controller
 
     private function calculateDistanceBearing($lat, $lon, $latlons){
         $response = [
-            'distance' => 0,
+            'distance' => 0, ''
         ];
         foreach(explode(':', $latlons) as $latlon){
 
