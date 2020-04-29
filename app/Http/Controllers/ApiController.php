@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Report;
 use App\Services\ReportPullService;
 use DB;
 use GuzzleHttp\Client;
@@ -14,6 +15,16 @@ use Illuminate\Support\Facades\Log;
  */
 class ApiController extends Controller
 {
+    const STORM_REPORT = "STORM_REPORT";
+    const CIMMS_REPORT = "CIMMS_REPORT";
+    const SPOTTER_REPORT = "SPOTTER_REPORT";
+    const TORNADO_REPORT = "TORNADO_REPORT";
+
+    /**
+     * Report pull service variable
+     *
+     * @var ReportPullService
+     */
     private $reportPullService;
 
     /**
@@ -24,16 +35,21 @@ class ApiController extends Controller
         $this->reportPullService = $reportPullService;
     }
 
+    /**
+     * Test api for report pull service
+     *
+     * @return void
+     */
     public function test(){
         $this->reportPullService->run();
     }
 
     /**
-     * Get Storm reports
-     * @return array
+     * Get all reports together
+     *
+     * @return array | object
      */
-    public function stormReports(Request $request){
-        $client = new Client();
+    public function getReports(Request $request){
         try {
             $params = [];
             if($request->get('uid')){
@@ -47,71 +63,63 @@ class ApiController extends Controller
             }
             $lat = doubleval($params[1]);
             $lon = doubleval($params[2]);
+            $reports = Report::all();
+            $response = [
+                'storm_report'   => $this->getStormReports($reports, $lat, $lon),
+                'cimms'          => [],
+                'svr'            => [],
+                'tornado_report' => []
+            ];
+            //die;
+            return $response;
+        }catch (\Exception $ex){
+            Log::error('Error: ' . $ex->getMessage());
+        }
+        return [];
+    }
 
-            Log::info('Downloading storm feed...');
-            $url = "http://rs.allisonhouse.com/feeds/781bb370445428356172366d2f5c0507/lsr.php";
-            $res = $client->request('GET', $url, [
-                'headers' => [
-                    'User-Agent' => $_SERVER['HTTP_USER_AGENT'],
-                ]]);
-
-            $response = $res->getBody()->getContents();
-
-            $reports = [];
-            foreach(preg_split("/((\r?\n)|(\r\n?))/", $response) as $line){
-                $obj = explode(";", $line);
-                if(count($obj) != 10){
-                    continue;
-                }
-                //var_dump(count($obj));
-                $event = [
-                    'NUM' => $obj[0],
-                    'EVENT' => strtolower($obj[1]),
-                    'UNIX_TIMESTAMP' => $obj[2],
-                    'LATITUDE' => explode(",", $obj[3])[0],
-                    'LONGITUDE' => explode(",", $obj[3])[1],
-                    'MAGNITUDE' => $obj[4],
-                    'CITY' => $obj[5],
-                    'COUNTY' => $obj[6],
-                    'STATE' => $obj[7],
-                    'SOURCE' => $obj[8],
-                    'REMARKS' => $obj[9]
-                ];
-
-                if(strpos($event['EVENT'], 'snow') !== false || strpos($event['EVENT'], 'hail') !== false){
-                    $cd = new \DateTime( gmdate("Y-m-d H:i:s", intval($event['UNIX_TIMESTAMP'])) );
-                    $now = new \DateTime( gmdate("Y-m-d H:i:s") );
+    /**
+     * Get Storm reports
+     * @return array
+     */
+    public function getStormReports($reports, $lat, $lon){
+        try {
+            $response = [];
+            foreach($reports as $report){
+                if($report->report_type == self::STORM_REPORT) {
+                    $cd = new \DateTime(gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)));
+                    $now = new \DateTime(gmdate("Y-m-d H:i:s"));
                     $diff = $now->getTimestamp() - $cd->getTimestamp();
-                    if($diff <= 3600){
-                        $distance = $this->distance($lat, $lon, doubleval($event['LATITUDE']), doubleval($event['LONGITUDE']));
-
-                        if($distance <= 1500){
-                            //var_dump($distance);
-                            if(strpos($event['EVENT'], 'hail') !== false){
+                    //var_dump($diff); die;
+                    if ($diff <= 36000) {
+                        $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
+                        if ($distance <= 1500) {
+                            //var_dump($distance);die;
+                            if (strpos($report->event, 'hail') !== false) {
                                 $matches = array();
-                                preg_match('/[\d.]+/', $event['MAGNITUDE'], $matches);
-                                if(count($matches) > 0 && floatval($matches[0]) <= 1){
+                                preg_match('/[\d.]+/', $report->magnitude, $matches);
+                                if (count($matches) > 0 && floatval($matches[0]) <= 1) {
                                     continue;
                                 }
                             }
 
                             // prepare report
-                            $bearing = $this->getBearing($lat, $lon, doubleval($event['LATITUDE']), doubleval($event['LONGITUDE']));
+                            $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                             $direction = $this->getCompassDirection($bearing);
-                            $report = [
-                                'event' => $event['EVENT'],
-                                'time' => gmdate("Y-m-d H:i:s", intval($event['UNIX_TIMESTAMP'])),
-                                'size' => $event['MAGNITUDE'],
-                                'remarks' => $event['REMARKS'],
+                            $obj = [
+                                'event' => $report->event,
+                                'time' => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
+                                'size' => $report->magnitude,
+                                'remarks' => $report->remarks,
                                 'distance' => $distance,
                                 'direction' => $bearing . ' ' . $direction
                             ];
-                            array_push($reports, $report);
+                            array_push($response, $obj);
                         }
                     }
                 }
             }
-            return $reports;
+            return $response;
         }catch (\Exception $ex){
             Log::error('Error: ' . $ex->getMessage());
         }

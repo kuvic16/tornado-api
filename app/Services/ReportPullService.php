@@ -34,11 +34,10 @@ class ReportPullService
     public function run(){
         Log::info('ReportPullService:: Start');
         $client = new Client();
-        //$this->pullStormReports($client);
-        //$this->pullCimms($client);
-        //$this->pullSpotterNetworks($client);
+        $this->pullStormReports($client);
+        $this->pullCimms($client);
+        $this->pullSpotterNetworks($client);
         $this->pullTornadoWarning($client);
-
         Log::info('ReportPullService:: End');
     }
 
@@ -72,7 +71,7 @@ class ReportPullService
                     $report->state = $obj[7];
                     $report->source = $obj[8];
                     $report->remarks = $obj[9];
-                    if(strpos($report->event, 'snow') !== false || strpos($report->event, 'hail') !== false){
+                    if(strpos($report->event, 'tornado') !== false || strpos($report->event, 'hail') !== false){
                         $cd = new \DateTime( gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)) );
                         $now = new \DateTime( gmdate("Y-m-d H:i:s") );
                         $diff = $now->getTimestamp() - $cd->getTimestamp();
