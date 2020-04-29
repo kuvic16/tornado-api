@@ -97,7 +97,7 @@ class ReportPullService
             $response = $this->post($client, $url, "90993");
             Report::where('report_type', self::SPOTTER_REPORT)->delete();
             $objs = json_decode($response);
-            if($objs->reports){
+            if($objs && isset($objs->reports)){
                 foreach($objs->reports as $obj){
                     $report = new Report();
                     $report->report_type = self::SPOTTER_REPORT;
@@ -229,7 +229,7 @@ class ReportPullService
         try {
             $res = $client->request("POST", $url, [
                 'headers' => [
-                    'User-Agent'   => $_SERVER['HTTP_USER_AGENT'],
+                    'User-Agent'   => isset($_SERVER['HTTP_USER_AGENT'])? $_SERVER['HTTP_USER_AGENT'] : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.122 Safari/537.36',
                     'Content-Type' => 'application/json'
                 ],
                 'body' => json_encode(

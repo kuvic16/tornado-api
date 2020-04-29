@@ -135,6 +135,7 @@ class ApiController extends Controller
             foreach($reports as $report) {
                 if ($report->report_type == self::CIMMS_REPORT) {
                     //var_dump($report->latlon); die;
+                    $obj = $this->calculateDistanceBearing($lat, $lon, $report->latlon);
                     $obj = [
                         "id"                => $report->object_id,
                         "distance"          => 0,
@@ -158,6 +159,9 @@ class ApiController extends Controller
     }
 
     private function calculateDistanceBearing($lat, $lon, $latlons){
+        $response = [
+            'distance' => 0,
+        ];
         foreach(explode(':', $latlons) as $latlon){
 
         }
