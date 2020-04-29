@@ -66,9 +66,9 @@ class ApiController extends Controller
             $reports = Report::all();
             $response = [
                 'storm_report'   => $this->getStormReports($reports, $lat, $lon),
-                'cimms'          => [],
-                'svr'            => [],
-                'tornado_report' => []
+                'cimms'          => $this->getCimmsReports($reports, $lat, $lon),
+                'spotter'            => $this->getSvrReport(),
+                'warning'        => $this->getWarningReport()
             ];
             //die;
             return $response;
@@ -91,7 +91,7 @@ class ApiController extends Controller
                     $now = new \DateTime(gmdate("Y-m-d H:i:s"));
                     $diff = $now->getTimestamp() - $cd->getTimestamp();
                     //var_dump($diff); die;
-                    if ($diff <= 36000) {
+                    //if ($diff <= 36000) {
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                         if ($distance <= 1500) {
                             //var_dump($distance);die;
@@ -115,8 +115,9 @@ class ApiController extends Controller
                                 'direction' => $bearing . ' ' . $direction
                             ];
                             array_push($response, $obj);
+                            break;
                         }
-                    }
+                    //}
                 }
             }
             return $response;
@@ -124,6 +125,66 @@ class ApiController extends Controller
             Log::error('Error: ' . $ex->getMessage());
         }
         return [];
+    }
+
+
+
+    private function getCimmsReports($reports, $lat, $lon){
+        try {
+            $response = [];
+            foreach($reports as $report) {
+                if ($report->report_type == self::CIMMS_REPORT) {
+                    //var_dump($report->latlon); die;
+                    $obj = [
+                        "id"                => $report->object_id,
+                        "distance"          => 0,
+                        "range"             => '',
+                        "ProbHail"          => $report->prob_hail . '%',
+                        "ProbTor"           => $report->prob_tor . '%',
+                        "ProbWind"          => $report->prob_wind . '%',
+                        "description"       => $report->remarks
+                    ];
+                    array_push($response, $obj);
+                    break;
+                }
+            }
+
+
+            return $response;
+        }catch (\Exception $ex){
+            Log::error('Error: ' . $ex->getMessage());
+        }
+        return [];
+    }
+
+    private function calculateDistanceBearing($lat, $lon, $latlons){
+        foreach(explode(':', $latlons) as $latlon){
+
+        }
+    }
+
+    private function getSvrReport(){
+        $response = [];
+        $obj = [
+            "type" => '',
+            "distance" => '',
+            "bearing" => '',
+            "description" => ''
+        ];
+        array_push($response, $obj);
+
+        return $response;
+    }
+
+    private function getWarningReport(){
+        $response = [];
+        $obj = [
+            "type" => 'SVR/TOR',
+            "description" => ''
+        ];
+        array_push($response, $obj);
+
+        return $response;
     }
 
 
@@ -251,99 +312,7 @@ class ApiController extends Controller
 
 
 
-    /**
-     * Prepare CIMMS response
-     *
-     * @param $request
-     * @param $probType
-     * @param $probLabel
-     * @return array
-     */
-    private function prepareCimmsResponse($request, $probType, $probLabel){
-        $client = new Client();
-        try {
-            $params = [];
-            if($request->get('uid')){
-                $uid = $request->get('uid');
-                $params = explode(",", $uid);
-            }
-            if(count($params) < 3){
-                return [
-                    'error' => 'uid parameter missing which should contain uid,lat,lon'
-                ];
-            }
-            $lat = doubleval($params[1]);
-            $lon = doubleval($params[2]);
 
-            Log::info('Downloading cimms hail probability...');
-            $url = "https://cimss.ssec.wisc.edu/severe_conv/NOAACIMSS_PROBSEVERE";
-            $res = $client->request('GET', $url, [
-                'headers' => [
-                    'User-Agent' => $_SERVER['HTTP_USER_AGENT'],
-                ]]);
-
-            $response = $res->getBody()->getContents();
-
-            $reports = []; $newMessage = false; $skip = false; $index = -1; $minDistance = 0; $next = false;
-            $minBearing = 0; $maxBearing = 0;
-            foreach(preg_split("/((\r?\n)|(\r\n?))/", $response) as $line){
-                if (strpos($line, "Line:") !== false) {
-                    $newMessage = true;
-                    $prob = null;
-                    preg_match("/(?<=ProbHail: )\d*(?=%)/", $line, $hail);
-                    if($probType == 'ProbHail') $prob =  $hail;
-
-                    preg_match("/(?<=ProbTor: )\d*(?=%)/", $line, $tor);
-                    if($probType == 'ProbTor') $prob =  $tor;
-
-                    preg_match("/(?<=ProbWind: )\d*(?=%)/", $line, $wind);
-                    if($probType == 'ProbWind') $prob =  $wind;
-
-//                    if (count($prob) > 0 && intval($prob[0]) == 0) {
-//                        $skip = true;
-//                    } else {
-                    $index = $index + 1;
-                    $minDistance = 0;
-                    $minBearing = 0; $maxBearing = 0;
-                    preg_match("/(?<=% ).*(?=\")/", $line, $m);
-                    preg_match("/(?<=Object ID: )\d*/", $m[0], $id);
-                    $reports[$index] = [
-                        "id"                => $id[0],
-                        "distance"          => 0,
-                        "range"             => '',
-                        "ProbHail"          => $hail[0] . '%',
-                        "ProbTor"           => $tor[0] . '%',
-                        "ProbWind"          => $wind[0] . '%',
-                        "description"       => $m[0]
-                    ];
-//                    }
-                    continue;
-                }elseif ($line == 'End:') {
-                    $newMessage = false;
-                    $skip = false;
-                    $reports[$index]["distance"] = $minDistance;
-                    $reports[$index]["range"] = $minBearing . "-" . $maxBearing;
-                    break;
-                }elseif($newMessage) {
-                    if ($skip) continue;
-                    else {
-                        $distance = $this->distance($lat, $lon, doubleval(explode(",", $line)[0]), doubleval(explode(",", $line)[1]));
-                        if ($minDistance == 0 || $minDistance > $distance) $minDistance = $distance;
-
-                        $bearing = $this->getBearing($lat, $lon, doubleval(explode(",", $line)[0]), doubleval(explode(",", $line)[1]));
-                        if ($minBearing == 0 || $minBearing > $bearing) $minBearing = $bearing;
-                        if ($maxBearing == 0 || $maxBearing < $bearing) $maxBearing = $bearing;
-                    }
-                }
-
-            }
-            die;
-            return $reports;
-        }catch (\Exception $ex){
-            Log::error('Error: ' . $ex->getMessage());
-        }
-        return [];
-    }
 
 
 
