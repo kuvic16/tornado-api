@@ -170,6 +170,7 @@ class ReportPullService
                         preg_match("/(?<=ProbHail: )\d*(?=%)/", $line, $hail);
                         preg_match("/(?<=ProbTor: )\d*(?=%)/", $line, $tor);
                         preg_match("/(?<=ProbWind: )\d*(?=%)/", $line, $wind);
+                        preg_match("/(?<=MESH: ).+?(?=\\\\n)/", $line, $mesh);
 
 
                         preg_match("/(?<=% ).*(?=\")/", $line, $m);
@@ -180,6 +181,7 @@ class ReportPullService
                         $report->prob_hail = $hail[0];
                         $report->prob_wind = $wind[0];
                         $report->prob_tor = $tor[0];
+                        $report->mesh = $mesh[0];
                         $report->remarks = $m[0];
                         $report->latlon = '';
                         continue;

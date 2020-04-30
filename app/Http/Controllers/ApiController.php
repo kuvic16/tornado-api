@@ -181,6 +181,7 @@ class ApiController extends Controller
                         "ProbHail"          => $report->prob_hail . '%',
                         "ProbTor"           => $report->prob_tor . '%',
                         "ProbWind"          => $report->prob_wind . '%',
+                        "mesh"              => $report->mesh,
                         "description"       => $report->remarks
                     ];
                     array_push($response, $obj);
