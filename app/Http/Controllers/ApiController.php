@@ -128,12 +128,9 @@ class ApiController extends Controller
                     $event = ''; $size = 0;
                     if($report->tornado > 0 || $report->funnelcloud > 0 || $report->wallcloud){
                         $event = 'tornado';
-                        if($report->funnelcloud > 0) $size = $report->funnelcloud;
-                        if($report->wallcloud > 0) $size = $report->wallcloud;
-                        if($report->tornado > 0) $size = $report->tornado;
                     }elseif($report->hail > 0){
                         $event = 'hail';
-                        $size = $report->hail;
+                        $size = $report->hailsize;
                     }
                     if(!empty($event)) {
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
@@ -143,11 +140,13 @@ class ApiController extends Controller
                         $obj = [
                             'event' => $event,
                             'time' => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
-                            'size' => $size,
                             'remarks' => $report->remarks,
                             'distance' => $distance,
                             'direction' => $bearing . ' ' . $direction
                         ];
+                        if($size > 0){
+                            $obj['size'] = $size;
+                        }
                         array_push($response, $obj);
                     }
                 }
