@@ -144,6 +144,9 @@ class ReportPullService
                     $report->office = explode(":", $obj[2])[0];
                     $report->office_id = explode(":", $obj[2])[1];
                     $report->latlon = $obj[4];
+
+                    $url = 'http://rs.allisonhouse.com/ww.php?id=' . $obj[2] . ':' . $report->phenom;
+                    $report->remarks = $this->get($client, $url);
                     $report->save();
                 }
             }

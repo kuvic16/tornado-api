@@ -69,8 +69,7 @@ class ApiController extends Controller
             $response = [
                 'storm_report'   => $this->getStormReports($reports, $lat, $lon),
                 'cimms'          => $this->getCimmsReports($reports, $lat, $lon),
-                //'spotter'        => $this->getSvrReport(),
-                'warning'        => $this->getWarningReport()
+                'warning'        => $this->getWarningReport($reports, $lat, $lon)
             ];
             return $response;
         }catch (\Exception $ex){
@@ -223,28 +222,43 @@ class ApiController extends Controller
         ];
     }
 
-    private function getSvrReport(){
-        $response = [];
-        $obj = [
-            "type" => '',
-            "distance" => '',
-            "bearing" => '',
-            "description" => ''
-        ];
-        array_push($response, $obj);
 
-        return $response;
-    }
-
-    private function getWarningReport(){
-        $response = [];
-        $obj = [
-            "type" => 'SVR/TOR',
-            "description" => ''
-        ];
-        array_push($response, $obj);
-
-        return $response;
+    /**
+     * Get warning report
+     *
+     * @param $reports
+     * @param $lat
+     * @param $lon
+     *
+     * @return array
+     */
+    private function getWarningReport($reports, $lat, $lon){
+        try {
+            $response = [];
+            foreach($reports as $report) {
+                if ($report->report_type == self::TORNADO_REPORT) {
+                    $type = "";
+                    if($report->phenom == 'SV'){
+                        $type = 'SVR';
+                    }
+                    if($report->phenom == 'TO' || $report->phenom == 'TOR' || $report->phenom == 'TR'){
+                        $type = 'TOR';
+                    }
+                    if(!empty($type)) {
+                        $obj = [
+                            "type"          => $type,
+                            "description"   => $report->remarks,
+                            "is_inside"     => $this->contains($lat, $lon, $report->latlon)
+                        ];
+                        array_push($response, $obj);
+                    }
+                }
+            }
+            return $response;
+        }catch (\Exception $ex){
+            Log::error('Error: ' . $ex->getMessage());
+        }
+        return [];
     }
 
 
@@ -344,6 +358,57 @@ class ApiController extends Controller
                 $direction = "N";
         }
         return $direction;
+    }
+
+    /**
+     * Is user inside into ploygon
+     *
+     * @param $lat
+     * @param $lon
+     * @param $latlons
+     *
+     * @return bool
+     */
+    private function contains($lat, $lon, $latlons){
+        $_vertices = explode(':', $latlons);
+        $lastPoint = $_vertices[count($_vertices) - 1];
+        $lastPointLat = doubleval(explode(',', $lastPoint)[0]);
+        $lastPointLon = doubleval(explode(',', $lastPoint)[1]);
+        $isInside = false;
+        $x = $lon;
+        foreach ($_vertices as $point){
+            $pointLat = doubleval(explode(',', $point)[0]);
+            $pointLon = doubleval(explode(',', $point)[1]);
+
+            $x1 = $lastPointLon;
+            $x2 = $pointLon;
+            $dx = $x2 - $x1;
+
+            if (abs($dx) > 180.0){
+                if ($x > 0){
+                    while ($x1 < 0)
+                        $x1 += 360;
+                    while ($x2 < 0)
+                        $x2 += 360;
+                }else{
+                    while ($x1 > 0)
+                        $x1 -= 360;
+                    while ($x2 > 0)
+                        $x2 -= 360;
+                }
+                $dx = $x2 - $x1;
+            }
+
+            if (($x1 <= $x && $x2 > $x) || ($x1 >= $x && $x2 < $x)){
+                $grad = ($pointLat - $lastPointLat) / $dx;
+                $intersectAtLat = $lastPointLat + (($x - $x1) * $grad);
+                if ($intersectAtLat > $lat)
+                    $isInside = !$isInside;
+            }
+            $lastPointLat = $pointLat;
+            $lastPointLon = $pointLon;
+        }
+        return $isInside;
     }
 
 
