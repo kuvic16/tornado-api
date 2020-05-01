@@ -110,14 +110,16 @@ class ApiController extends Controller
 
                             // prepare report
                             $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                            $direction = $this->getCompassDirection($bearing);
+                            //$direction = $this->getCompassDirection($bearing);
+                            $time = gmdate("Y-m-d H:i:s", intval($report->unix_timestamp));
+                            $remarks = "time: " . $time . " ";
+                            $remarks .= $report->remarks;
                             $obj = [
                                 'event'     => $report->event,
-                                'time'      => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
                                 'size'      => $report->magnitude,
-                                'remarks'   => $report->remarks,
+                                'remarks'   => $remarks,
                                 'distance'  => $distance,
-                                'range'     => $bearing . ' ' . $direction
+                                'range'     => $bearing
                             ];
                             array_push($response, $obj);
                             break;
@@ -134,14 +136,16 @@ class ApiController extends Controller
                     if(!empty($event)) {
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                         $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                        $direction = $this->getCompassDirection($bearing);
+                        //$direction = $this->getCompassDirection($bearing);
+                        $time = gmdate("Y-m-d H:i:s", intval($report->unix_timestamp));
+                        $remarks = "time: " . $time . " ";
+                        $remarks .= $report->remarks;
 
                         $obj = [
                             'event'     => $event,
-                            'time'      => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
-                            'remarks'   => $report->remarks,
+                            'remarks'   => $remarks,
                             'distance'  => $distance,
-                            'range'     => $bearing . ' ' . $direction
+                            'range'     => $bearing
                         ];
                         if($size > 0){
                             $obj['size'] = $size;
