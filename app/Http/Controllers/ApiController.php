@@ -112,12 +112,12 @@ class ApiController extends Controller
                             $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                             $direction = $this->getCompassDirection($bearing);
                             $obj = [
-                                'event' => $report->event,
-                                'time' => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
-                                'size' => $report->magnitude,
-                                'remarks' => $report->remarks,
-                                'distance' => $distance,
-                                'direction' => $bearing . ' ' . $direction
+                                'event'     => $report->event,
+                                'time'      => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
+                                'size'      => $report->magnitude,
+                                'remarks'   => $report->remarks,
+                                'distance'  => $distance,
+                                'range'     => $bearing . ' ' . $direction
                             ];
                             array_push($response, $obj);
                             break;
@@ -137,11 +137,11 @@ class ApiController extends Controller
                         $direction = $this->getCompassDirection($bearing);
 
                         $obj = [
-                            'event' => $event,
-                            'time' => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
-                            'remarks' => $report->remarks,
-                            'distance' => $distance,
-                            'direction' => $bearing . ' ' . $direction
+                            'event'     => $event,
+                            'time'      => gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)),
+                            'remarks'   => $report->remarks,
+                            'distance'  => $distance,
+                            'range'     => $bearing . ' ' . $direction
                         ];
                         if($size > 0){
                             $obj['size'] = $size;
