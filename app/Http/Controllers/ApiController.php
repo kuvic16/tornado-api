@@ -42,6 +42,11 @@ class ApiController extends Controller
      */
     public function test(){
         $this->reportPullService->run();
+//        $cd = new \DateTime(gmdate("Y-m-d H:i:s", 1588418400));
+//        $now = new \DateTime(gmdate("Y-m-d H:i:s"));
+//        $diff = $now->getTimestamp() - $cd->getTimestamp();
+//        var_dump($diff);
+
     }
 
     /**
@@ -96,7 +101,7 @@ class ApiController extends Controller
                     $now = new \DateTime(gmdate("Y-m-d H:i:s"));
                     $diff = $now->getTimestamp() - $cd->getTimestamp();
                     //var_dump($diff); die;
-                    if ($diff <= 36000) {
+                    if ($diff <= 3600) {
                         $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                         if ($distance <= 45) {
@@ -135,24 +140,31 @@ class ApiController extends Controller
                         $size = $report->hailsize;
                     }
                     if(!empty($event)) {
-                        $report->longitude = $this->properLon($report->longitude);
-                        $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                        $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                        //$direction = $this->getCompassDirection($bearing);
                         $time = gmdate("Y-m-d H:i:s", intval($report->unix_timestamp));
-                        $remarks = "time: " . $time . " ";
-                        $remarks .= $report->remarks;
+                        $cd = new \DateTime($time);
+                        $now = new \DateTime(gmdate("Y-m-d H:i:s"));
+                        $diff = $now->getTimestamp() - $cd->getTimestamp();
+                        if ($diff <= 3600) {
+                            $report->longitude = $this->properLon($report->longitude);
+                            $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
+                            if ($distance <= 45) {
+                                $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
+                                //$direction = $this->getCompassDirection($bearing);
+                                $remarks = "time: " . $time . " ";
+                                $remarks .= $report->remarks;
 
-                        $obj = [
-                            'event'     => $event,
-                            'remarks'   => $remarks,
-                            'distance'  => $distance,
-                            'range'     => $bearing
-                        ];
-                        if($size > 0){
-                            $obj['size'] = $size;
+                                $obj = [
+                                    'event' => $event,
+                                    'remarks' => $remarks,
+                                    'distance' => $distance,
+                                    'range' => $bearing
+                                ];
+                                if ($size > 0) {
+                                    $obj['size'] = $size;
+                                }
+                                array_push($response, $obj);
+                            }
                         }
-                        array_push($response, $obj);
                     }
                 }
             }
