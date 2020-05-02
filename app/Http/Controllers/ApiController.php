@@ -64,7 +64,7 @@ class ApiController extends Controller
                 ];
             }
             $lat = doubleval($params[1]);
-            $lon = doubleval($params[2]);
+            $lon = $this->properLon(doubleval($params[2]));
             $reports = Report::all();
             $response = [
                 'storm_report'   => $this->getStormReports($reports, $lat, $lon),
@@ -96,9 +96,10 @@ class ApiController extends Controller
                     $now = new \DateTime(gmdate("Y-m-d H:i:s"));
                     $diff = $now->getTimestamp() - $cd->getTimestamp();
                     //var_dump($diff); die;
-                    //if ($diff <= 36000) {
+                    if ($diff <= 36000) {
+                        $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                        if ($distance <= 1500) {
+                        if ($distance <= 45) {
                             //var_dump($distance);die;
                             if (strpos($report->event, 'hail') !== false) {
                                 $matches = array();
@@ -124,7 +125,7 @@ class ApiController extends Controller
                             array_push($response, $obj);
                             break;
                         }
-                    //}
+                    }
                 }elseif($report->report_type == self::SPOTTER_REPORT) {
                     $event = ''; $size = 0;
                     if($report->tornado > 0 || $report->funnelcloud > 0 || $report->wallcloud){
@@ -134,6 +135,7 @@ class ApiController extends Controller
                         $size = $report->hailsize;
                     }
                     if(!empty($event)) {
+                        $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                         $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                         //$direction = $this->getCompassDirection($bearing);
@@ -212,6 +214,7 @@ class ApiController extends Controller
         foreach(explode(':', $latlons) as $latlon){
             $lat1 = doubleval(explode(',', $latlon)[0]);
             $lon1 = doubleval(explode(',', $latlon)[1]);
+            $lon1 = $this->properLon($lon1);
 
             $distance = round($this->distance($lat, $lon, $lat1, $lon1));
             if ($minDistance == 0 || $minDistance > $distance) $minDistance = $distance;
@@ -377,12 +380,13 @@ class ApiController extends Controller
         $_vertices = explode(':', $latlons);
         $lastPoint = $_vertices[count($_vertices) - 1];
         $lastPointLat = doubleval(explode(',', $lastPoint)[0]);
-        $lastPointLon = doubleval(explode(',', $lastPoint)[1]);
+        $lastPointLon = $this->properLon(doubleval(explode(',', $lastPoint)[1]));
         $isInside = false;
         $x = $lon;
         foreach ($_vertices as $point){
             $pointLat = doubleval(explode(',', $point)[0]);
             $pointLon = doubleval(explode(',', $point)[1]);
+            $pointLon = $this->properLon($pointLon);
 
             $x1 = $lastPointLon;
             $x2 = $pointLon;
@@ -413,6 +417,18 @@ class ApiController extends Controller
             $lastPointLon = $pointLon;
         }
         return $isInside;
+    }
+
+    /**
+     * Make longitude always negative
+     *
+     * @param $lon
+     *
+     * @return mixed
+     */
+    private function properLon($lon){
+        if($lon < 0) return $lon;
+        else return ($lon * -1);
     }
 
 
