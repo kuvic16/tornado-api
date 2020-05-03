@@ -19,6 +19,8 @@ class ApiController extends Controller
     const CIMMS_REPORT = "CIMMS_REPORT";
     const SPOTTER_REPORT = "SPOTTER_REPORT";
     const TORNADO_REPORT = "TORNADO_REPORT";
+    const ALLOWED_MILES = 45;
+    const ALLOWED_MINUTES = 3600;
 
     /**
      * Report pull service variable
@@ -42,11 +44,6 @@ class ApiController extends Controller
      */
     public function test(){
         $this->reportPullService->run();
-//        $cd = new \DateTime(gmdate("Y-m-d H:i:s", 1588418400));
-//        $now = new \DateTime(gmdate("Y-m-d H:i:s"));
-//        $diff = $now->getTimestamp() - $cd->getTimestamp();
-//        var_dump($diff);
-
     }
 
     /**
@@ -97,15 +94,10 @@ class ApiController extends Controller
             $response = [];
             foreach($reports as $report){
                 if($report->report_type == self::STORM_REPORT) {
-                    $cd = new \DateTime(gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)));
-                    $now = new \DateTime(gmdate("Y-m-d H:i:s"));
-                    $diff = $now->getTimestamp() - $cd->getTimestamp();
-                    //var_dump($diff); die;
-                    if ($diff <= 3600) {
+                    if ($this->isOneHourOld($report->unix_timestamp)) {
                         $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                        if ($distance <= 45) {
-                            //var_dump($distance);die;
+                        if ($this->isNear($distance)) {
                             if (strpos($report->event, 'hail') !== false) {
                                 $matches = array();
                                 preg_match('/[\d.]+/', $report->magnitude, $matches);
@@ -116,7 +108,6 @@ class ApiController extends Controller
 
                             // prepare report
                             $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                            //$direction = $this->getCompassDirection($bearing);
                             $time = gmdate("Y-m-d H:i:s", intval($report->unix_timestamp));
                             $remarks = "time: " . $time . " ";
                             $remarks .= $report->remarks;
@@ -128,7 +119,6 @@ class ApiController extends Controller
                                 'range'     => $bearing
                             ];
                             array_push($response, $obj);
-                            break;
                         }
                     }
                 }elseif($report->report_type == self::SPOTTER_REPORT) {
@@ -140,16 +130,12 @@ class ApiController extends Controller
                         $size = $report->hailsize;
                     }
                     if(!empty($event)) {
-                        $time = gmdate("Y-m-d H:i:s", intval($report->unix_timestamp));
-                        $cd = new \DateTime($time);
-                        $now = new \DateTime(gmdate("Y-m-d H:i:s"));
-                        $diff = $now->getTimestamp() - $cd->getTimestamp();
-                        if ($diff <= 3600) {
+                        if ($this->isOneHourOld($report->unix_timestamp)) {
                             $report->longitude = $this->properLon($report->longitude);
                             $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                            if ($distance <= 45) {
+                            if ($this->isNear($distance)) {
                                 $bearing = $this->getBearing($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
-                                //$direction = $this->getCompassDirection($bearing);
+                                $time = gmdate("Y-m-d H:i:s", intval($report->unix_timestamp));
                                 $remarks = "time: " . $time . " ";
                                 $remarks .= $report->remarks;
 
@@ -191,18 +177,19 @@ class ApiController extends Controller
             foreach($reports as $report) {
                 if ($report->report_type == self::CIMMS_REPORT) {
                     $cObj = $this->calculateDistanceRange($lat, $lon, $report->latlon);
-                    $obj = [
-                        "id"                => $report->object_id,
-                        "distance"          => $cObj['distance'],
-                        "range"             => $cObj['range'],
-                        "ProbHail"          => $report->prob_hail . '%',
-                        "ProbTor"           => $report->prob_tor . '%',
-                        "ProbWind"          => $report->prob_wind . '%',
-                        "mesh"              => $report->mesh,
-                        "description"       => $report->remarks
-                    ];
-                    array_push($response, $obj);
-                    break;
+                    if ($this->isNear($cObj['distance'])) {
+                        $obj = [
+                            "id" => $report->object_id,
+                            "distance" => $cObj['distance'],
+                            "range" => $cObj['range'],
+                            "ProbHail" => $report->prob_hail . '%',
+                            "ProbTor" => $report->prob_tor . '%',
+                            "ProbWind" => $report->prob_wind . '%',
+                            "mesh" => $report->mesh,
+                            "description" => $report->remarks
+                        ];
+                        array_push($response, $obj);
+                    }
                 }
             }
             return $response;
@@ -264,12 +251,14 @@ class ApiController extends Controller
                         $type = 'TOR';
                     }
                     if(!empty($type)) {
-                        $obj = [
-                            "type"          => $type,
-                            "description"   => $report->remarks,
-                            "is_inside"     => $this->contains($lat, $lon, $report->latlon)
-                        ];
-                        array_push($response, $obj);
+                        $is_inside = $this->contains($lat, $lon, $report->latlon);
+                        if($is_inside) {
+                            $obj = [
+                                "type" => $type,
+                                "description" => $report->remarks
+                            ];
+                            array_push($response, $obj);
+                        }
                     }
                 }
             }
@@ -393,12 +382,18 @@ class ApiController extends Controller
         $lastPoint = $_vertices[count($_vertices) - 1];
         $lastPointLat = doubleval(explode(',', $lastPoint)[0]);
         $lastPointLon = $this->properLon(doubleval(explode(',', $lastPoint)[1]));
+        $lastPointLat = $lastPointLat/100;
+        $lastPointLon = $lastPointLon/100;
+
         $isInside = false;
         $x = $lon;
         foreach ($_vertices as $point){
             $pointLat = doubleval(explode(',', $point)[0]);
             $pointLon = doubleval(explode(',', $point)[1]);
             $pointLon = $this->properLon($pointLon);
+
+            $pointLat = $pointLat/100;
+            $pointLon = $pointLon/100;
 
             $x1 = $lastPointLon;
             $x2 = $pointLon;
@@ -441,6 +436,32 @@ class ApiController extends Controller
     private function properLon($lon){
         if($lon < 0) return $lon;
         else return ($lon * -1);
+    }
+
+
+    /**
+     * Checking the unix timestamp is one hour old or not
+     *
+     * @param $unix_timestamp
+     *
+     * @return bool
+     */
+    private function isOneHourOld($unix_timestamp){
+        $cd = new \DateTime(gmdate("Y-m-d H:i:s", intval($unix_timestamp)));
+        $now = new \DateTime(gmdate("Y-m-d H:i:s"));
+        $diff = $now->getTimestamp() - $cd->getTimestamp();
+        return $diff <= self::ALLOWED_MINUTES;
+    }
+
+    /**
+     * Is distance is near based on allowed miles
+     *
+     * @param $distance
+     *
+     * @return bool
+     */
+    private function isNear($distance){
+        return $distance <= self::ALLOWED_MILES;
     }
 
 
