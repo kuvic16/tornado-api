@@ -223,8 +223,10 @@ class ApiController extends Controller
             if ($maxRange == 0 || $maxRange < $range) $maxRange = $range;
         }
 
+        $range = $minRange . '-' . $maxRange;
+        if($minRange > 0) $range = $maxRange . '-' . $minRange;
         return [
-            'distance' => $minDistance, 'range' => $minRange . '-' .$maxRange
+            'distance' => $minDistance, 'range' => $range
         ];
     }
 
