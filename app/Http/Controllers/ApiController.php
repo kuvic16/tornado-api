@@ -192,6 +192,7 @@ class ApiController extends Controller
                     }
                 }
             }
+            //$this->shortenDistanceRange($response);
             return $response;
         }catch (\Exception $ex){
             Log::error('Error: ' . $ex->getMessage());
@@ -228,6 +229,40 @@ class ApiController extends Controller
         return [
             'distance' => $minDistance, 'range' => $range
         ];
+    }
+
+    private function shortenDistanceRange($reports){
+        foreach($reports as $reportX){
+            foreach($reports as $reportY){
+                if($reportX['id'] != $reportY['id']){
+                    $rangesX = array_map('intval', explode('-', $reportX['range']));
+                    $rangesY = array_map('intval', explode('-', $reportY['range']));
+
+                    $maxX = $rangesX[0];
+                    $minX = $rangesX[1];
+                    if($minX > $maxX){
+                        $maxX = $rangesX[1];
+                        $minX = $rangesX[0];
+                    }
+
+                    $maxY = $rangesY[0];
+                    $minY = $rangesY[1];
+                    if($minY > $maxY){
+                        $maxY = $rangesY[1];
+                        $minY = $rangesY[0];
+                    }
+
+                    if($minX >= $minY && $minX <= $minY) {
+
+                    }
+
+
+                    //var_dump($ranges);
+                    die;
+                    //if($reportX[''])
+                }
+            }
+        }
     }
 
 
@@ -291,7 +326,7 @@ class ApiController extends Controller
             $dist = acos($dist);
             $dist = rad2deg($dist);
             $miles = $dist * 60 * 1.1515;
-            return $miles;
+            return round($miles);
         }
     }
 
