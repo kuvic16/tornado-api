@@ -209,23 +209,39 @@ class ApiController extends Controller
      *
      * @return array
      */
-    private function calculateDistanceRange($lat, $lon, $latlons){
+    private function calculateDistanceRange( $lat, $lon, $latlons ){
         $minDistance = 0; $minRange = 0; $maxRange = 0;
-        foreach(explode(':', $latlons) as $latlon){
-            $lat1 = doubleval(explode(',', $latlon)[0]);
-            $lon1 = doubleval(explode(',', $latlon)[1]);
+        $closestMaxRange = 0; $closestMinRange = 0; $validMinClosest = false; $validMaxClosest = false;
+        foreach ( explode( ':', $latlons ) as $latlon ) {
+            $lat1 = doubleval( explode(',', $latlon)[0]);
+            $lon1 = doubleval( explode(',', $latlon)[1]);
             $lon1 = $this->properLon($lon1);
 
             $distance = round($this->distance($lat, $lon, $lat1, $lon1));
             if ($minDistance == 0 || $minDistance > $distance) $minDistance = $distance;
 
-            $range = round($this->getBearing($lat, $lon, $lat1, $lon1));
-            if ($minRange == 0 || $minRange > $range) $minRange = $range;
-            if ($maxRange == 0 || $maxRange < $range) $maxRange = $range;
+            $range = round( $this->getBearing( $lat, $lon, $lat1, $lon1 ) );
+            if ( $minRange == 0 || $minRange > $range ) $minRange = $range;
+            if ( $maxRange == 0 || $maxRange < $range ) $maxRange = $range;
+
+
+            if ( $range >= 1 && $range <= 15 ) $validMinClosest = true;
+            if ( $range > 345 ) $validMaxClosest = true;
+            if ( $range < 180 && $range > $closestMinRange ) {
+                $closestMinRange = $range;
+            }
+            
+            if( $range > 180 && ($closestMaxRange == 0 || $range < $closestMaxRange )) {
+                $closestMaxRange = $range;
+            }            
         }
 
-        $range = $minRange . '-' . $maxRange;
-        if($minRange > 0) $range = $maxRange . '-' . $minRange;
+        if($validMinClosest && $validMaxClosest){
+            $range = $closestMinRange . '-' . $closestMaxRange;
+        }else{
+            $range = $minRange . '-' . $maxRange;
+        }
+        //if($minRange > 0) $range = $maxRange . '-' . $minRange;
         return [
             'distance' => $minDistance, 'range' => $range
         ];
