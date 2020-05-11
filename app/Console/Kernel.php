@@ -26,7 +26,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->call('App\Services\ReportPullService@run')->everyFiveMinutes();
+        $schedule->call('App\Services\ReportPullService@run')->everyMinute();
     }
 
     /**

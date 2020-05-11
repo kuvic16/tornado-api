@@ -140,10 +140,10 @@ class ApiController extends Controller
                                 $remarks .= $report->remarks;
 
                                 $obj = [
-                                    'event' => $event,
-                                    'remarks' => $remarks,
+                                    'event'    => $event,
+                                    'remarks'  => $remarks,
                                     'distance' => $distance,
-                                    'range' => $bearing
+                                    'range'    => $bearing
                                 ];
                                 if ($size > 0) {
                                     $obj['size'] = $size;
@@ -179,13 +179,14 @@ class ApiController extends Controller
                     $cObj = $this->calculateDistanceRange($lat, $lon, $report->latlon);
                     if ($this->isNear($cObj['distance'])) {
                         $obj = [
-                            "id" => $report->object_id,
-                            "distance" => $cObj['distance'],
-                            "range" => $cObj['range'],
-                            "ProbHail" => $report->prob_hail . '%',
-                            "ProbTor" => $report->prob_tor . '%',
-                            "ProbWind" => $report->prob_wind . '%',
-                            "mesh" => $report->mesh,
+                            "id"          => $report->object_id,
+                            "distance"    => $cObj['distance'],
+                            "range"       => $cObj['range'],
+                            "bearings"    => $cObj['bearings'],
+                            "ProbHail"    => $report->prob_hail . '%',
+                            "ProbTor"     => $report->prob_tor . '%',
+                            "ProbWind"    => $report->prob_wind . '%',
+                            "mesh"        => $report->mesh,
                             "description" => $report->remarks
                         ];
                         array_push($response, $obj);
@@ -212,6 +213,7 @@ class ApiController extends Controller
     private function calculateDistanceRange( $lat, $lon, $latlons ){
         $minDistance = 0; $minRange = 0; $maxRange = 0;
         $closestMaxRange = 0; $closestMinRange = 0; $validMinClosest = false; $validMaxClosest = false;
+        $bearings = [];
         foreach ( explode( ':', $latlons ) as $latlon ) {
             $lat1 = doubleval( explode(',', $latlon)[0]);
             $lon1 = doubleval( explode(',', $latlon)[1]);
@@ -233,7 +235,13 @@ class ApiController extends Controller
             
             if( $range > 180 && ($closestMaxRange == 0 || $range < $closestMaxRange )) {
                 $closestMaxRange = $range;
-            }            
+            }
+            
+            $bearing = [
+                'latlon'  => $latlon,
+                'bearing' => $range
+            ];
+            array_push($bearings, $bearing);
         }
 
         if($validMinClosest && $validMaxClosest){
@@ -243,7 +251,7 @@ class ApiController extends Controller
         }
         //if($minRange > 0) $range = $maxRange . '-' . $minRange;
         return [
-            'distance' => $minDistance, 'range' => $range
+            'distance' => $minDistance, 'range' => $range, 'bearings' => $bearings
         ];
     }
 
@@ -307,7 +315,7 @@ class ApiController extends Controller
                         $is_inside = $this->contains($lat, $lon, $report->latlon);
                         if($is_inside) {
                             $obj = [
-                                "type" => $type,
+                                "type"        => $type,
                                 "description" => $report->remarks
                             ];
                             array_push($response, $obj);
