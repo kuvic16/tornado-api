@@ -245,11 +245,10 @@ class ApiController extends Controller
         }
 
         if($validMinClosest && $validMaxClosest){
-            $range = $closestMinRange . '-' . $closestMaxRange;
+            $range =  $closestMaxRange . '-' . $closestMinRange;
         }else{
             $range = $minRange . '-' . $maxRange;
         }
-        //if($minRange > 0) $range = $maxRange . '-' . $minRange;
         return [
             'distance' => $minDistance, 'range' => $range, 'bearings' => $bearings
         ];
