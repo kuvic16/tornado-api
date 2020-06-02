@@ -42,7 +42,8 @@ class ApiController extends Controller
      *
      * @return void
      */
-    public function test(){
+    public function test()
+    {
         $this->reportPullService->run();
     }
 
@@ -53,14 +54,15 @@ class ApiController extends Controller
      *
      * @return array | object
      */
-    public function getReports(Request $request){
+    public function getReports(Request $request)
+    {
         try {
             $params = [];
-            if($request->get('uid')){
+            if ($request->get('uid')) {
                 $uid = $request->get('uid');
                 $params = explode(",", $uid);
             }
-            if(count($params) < 3){
+            if (count($params) < 3) {
                 return [
                     'error' => 'uid parameter missing which should contain uid,lat,lon'
                 ];
@@ -74,7 +76,7 @@ class ApiController extends Controller
                 'warning'        => $this->getWarningReport($reports, $lat, $lon)
             ];
             return $response;
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
         }
         return [];
@@ -89,11 +91,12 @@ class ApiController extends Controller
      *
      * @return array
      */
-    public function getStormReports($reports, $lat, $lon){
+    public function getStormReports($reports, $lat, $lon)
+    {
         try {
             $response = [];
-            foreach($reports as $report){
-                if($report->report_type == self::STORM_REPORT) {
+            foreach ($reports as $report) {
+                if ($report->report_type == self::STORM_REPORT) {
                     if ($this->isOneHourOld($report->unix_timestamp)) {
                         $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
@@ -116,20 +119,21 @@ class ApiController extends Controller
                                 'size'      => $report->magnitude,
                                 'remarks'   => $remarks,
                                 'distance'  => $distance,
-                                'range'     => $bearing
+                                'range'     => $this->getBearingRange($bearing)
                             ];
                             array_push($response, $obj);
                         }
                     }
-                }elseif($report->report_type == self::SPOTTER_REPORT) {
-                    $event = ''; $size = 0;
-                    if($report->tornado > 0 || $report->funnelcloud > 0 || $report->wallcloud){
+                } elseif ($report->report_type == self::SPOTTER_REPORT) {
+                    $event = '';
+                    $size = 0;
+                    if ($report->tornado > 0 || $report->funnelcloud > 0 || $report->wallcloud) {
                         $event = 'tornado';
-                    }elseif($report->hail > 0){
+                    } elseif ($report->hail > 0) {
                         $event = 'hail';
                         $size = $report->hailsize;
                     }
-                    if(!empty($event)) {
+                    if (!empty($event)) {
                         if ($this->isOneHourOld($report->unix_timestamp)) {
                             $report->longitude = $this->properLon($report->longitude);
                             $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
@@ -143,7 +147,7 @@ class ApiController extends Controller
                                     'event'    => $event,
                                     'remarks'  => $remarks,
                                     'distance' => $distance,
-                                    'range'    => $bearing
+                                    'range'    => $this->getBearingRange($bearing)
                                 ];
                                 if ($size > 0) {
                                     $obj['size'] = $size;
@@ -155,12 +159,27 @@ class ApiController extends Controller
                 }
             }
             return $response;
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
         }
         return [];
     }
 
+    /**
+     * Calculate bearing range
+     * 
+     * @param $bearing | int
+     * 
+     * @return string
+     */
+    private function getBearingRange($bearing)
+    {
+        if ($bearing > 10) {
+            return ($bearing - 10) . " - " . ($bearing + 10);
+        } else {
+            return (350 + $bearing) . " - " . ($bearing + 10);
+        }
+    }
 
     /**
      * Get CIMMS Report
@@ -171,10 +190,11 @@ class ApiController extends Controller
      *
      * @return array
      */
-    private function getCimmsReports($reports, $lat, $lon){
+    private function getCimmsReports($reports, $lat, $lon)
+    {
         try {
             $response = [];
-            foreach($reports as $report) {
+            foreach ($reports as $report) {
                 if ($report->report_type == self::CIMMS_REPORT) {
                     $cObj = $this->calculateDistanceRange($lat, $lon, $report->latlon);
                     if ($this->isNear($cObj['distance'])) {
@@ -195,7 +215,7 @@ class ApiController extends Controller
             }
             //$this->shortenDistanceRange($response);
             return $response;
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
         }
         return [];
@@ -210,33 +230,39 @@ class ApiController extends Controller
      *
      * @return array
      */
-    private function calculateDistanceRange( $lat, $lon, $latlons ){
-        $minDistance = 0; $minRange = 0; $maxRange = 0;
-        $closestMaxRange = 0; $closestMinRange = 0; $validMinClosest = false; $validMaxClosest = false;
+    private function calculateDistanceRange($lat, $lon, $latlons)
+    {
+        $minDistance = 0;
+        $minRange = 0;
+        $maxRange = 0;
+        $closestMaxRange = 0;
+        $closestMinRange = 0;
+        $validMinClosest = false;
+        $validMaxClosest = false;
         $bearings = [];
-        foreach ( explode( ':', $latlons ) as $latlon ) {
-            $lat1 = doubleval( explode(',', $latlon)[0]);
-            $lon1 = doubleval( explode(',', $latlon)[1]);
+        foreach (explode(':', $latlons) as $latlon) {
+            $lat1 = doubleval(explode(',', $latlon)[0]);
+            $lon1 = doubleval(explode(',', $latlon)[1]);
             $lon1 = $this->properLon($lon1);
 
             $distance = round($this->distance($lat, $lon, $lat1, $lon1));
             if ($minDistance == 0 || $minDistance > $distance) $minDistance = $distance;
 
-            $range = round( $this->getBearing( $lat, $lon, $lat1, $lon1 ) );
-            if ( $minRange == 0 || $minRange > $range ) $minRange = $range;
-            if ( $maxRange == 0 || $maxRange < $range ) $maxRange = $range;
+            $range = round($this->getBearing($lat, $lon, $lat1, $lon1));
+            if ($minRange == 0 || $minRange > $range) $minRange = $range;
+            if ($maxRange == 0 || $maxRange < $range) $maxRange = $range;
 
 
-            if ( $range >= 1 && $range <= 15 ) $validMinClosest = true;
-            if ( $range > 345 ) $validMaxClosest = true;
-            if ( $range < 180 && $range > $closestMinRange ) {
+            if ($range >= 1 && $range <= 15) $validMinClosest = true;
+            if ($range > 345) $validMaxClosest = true;
+            if ($range < 180 && $range > $closestMinRange) {
                 $closestMinRange = $range;
             }
-            
-            if( $range > 180 && ($closestMaxRange == 0 || $range < $closestMaxRange )) {
+
+            if ($range > 180 && ($closestMaxRange == 0 || $range < $closestMaxRange)) {
                 $closestMaxRange = $range;
             }
-            
+
             $bearing = [
                 'latlon'  => $latlon,
                 'bearing' => $range
@@ -244,9 +270,9 @@ class ApiController extends Controller
             array_push($bearings, $bearing);
         }
 
-        if($validMinClosest && $validMaxClosest){
+        if ($validMinClosest && $validMaxClosest) {
             $range =  $closestMaxRange . '-' . $closestMinRange;
-        }else{
+        } else {
             $range = $minRange . '-' . $maxRange;
         }
         return [
@@ -254,29 +280,29 @@ class ApiController extends Controller
         ];
     }
 
-    private function shortenDistanceRange($reports){
-        foreach($reports as $reportX){
-            foreach($reports as $reportY){
-                if($reportX['id'] != $reportY['id']){
+    private function shortenDistanceRange($reports)
+    {
+        foreach ($reports as $reportX) {
+            foreach ($reports as $reportY) {
+                if ($reportX['id'] != $reportY['id']) {
                     $rangesX = array_map('intval', explode('-', $reportX['range']));
                     $rangesY = array_map('intval', explode('-', $reportY['range']));
 
                     $maxX = $rangesX[0];
                     $minX = $rangesX[1];
-                    if($minX > $maxX){
+                    if ($minX > $maxX) {
                         $maxX = $rangesX[1];
                         $minX = $rangesX[0];
                     }
 
                     $maxY = $rangesY[0];
                     $minY = $rangesY[1];
-                    if($minY > $maxY){
+                    if ($minY > $maxY) {
                         $maxY = $rangesY[1];
                         $minY = $rangesY[0];
                     }
 
-                    if($minX >= $minY && $minX <= $minY) {
-
+                    if ($minX >= $minY && $minX <= $minY) {
                     }
 
 
@@ -298,21 +324,22 @@ class ApiController extends Controller
      *
      * @return array
      */
-    private function getWarningReport($reports, $lat, $lon){
+    private function getWarningReport($reports, $lat, $lon)
+    {
         try {
             $response = [];
-            foreach($reports as $report) {
+            foreach ($reports as $report) {
                 if ($report->report_type == self::TORNADO_REPORT) {
                     $type = "";
-                    if($report->phenom == 'SV'){
+                    if ($report->phenom == 'SV') {
                         $type = 'SVR';
                     }
-                    if($report->phenom == 'TO' || $report->phenom == 'TOR' || $report->phenom == 'TR'){
+                    if ($report->phenom == 'TO' || $report->phenom == 'TOR' || $report->phenom == 'TR') {
                         $type = 'TOR';
                     }
-                    if(!empty($type)) {
+                    if (!empty($type)) {
                         $is_inside = $this->contains($lat, $lon, $report->latlon);
-                        if($is_inside) {
+                        if ($is_inside) {
                             $obj = [
                                 "type"        => $type,
                                 "description" => $report->remarks
@@ -323,7 +350,7 @@ class ApiController extends Controller
                 }
             }
             return $response;
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
         }
         return [];
@@ -340,10 +367,11 @@ class ApiController extends Controller
      *
      * @return float
      */
-    function distance($lat1, $lon1, $lat2, $lon2) {
+    function distance($lat1, $lon1, $lat2, $lon2)
+    {
         if (($lat1 == $lat2) && ($lon1 == $lon2)) {
             return 0;
-        }else {
+        } else {
             $theta = $lon1 - $lon2;
             $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
             $dist = acos($dist);
@@ -363,8 +391,10 @@ class ApiController extends Controller
      *
      * @return int
      */
-    function getBearing($lat1, $lon1, $lat2, $lon2) {
-        return (rad2deg(atan2(sin(deg2rad($lon2) - deg2rad($lon1)) * cos(deg2rad($lat2)), cos(deg2rad($lat1)) * sin(deg2rad($lat2)) - sin(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($lon2) - deg2rad($lon1)))) + 360) % 360;
+    function getBearing($lat1, $lon1, $lat2, $lon2)
+    {
+        return (rad2deg(atan2(sin(deg2rad($lon2) - deg2rad($lon1)) * cos(deg2rad($lat2)), cos(deg2rad($lat1)) *
+            sin(deg2rad($lat2)) - sin(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($lon2) - deg2rad($lon1)))) + 360) % 360;
     }
 
     /**
@@ -374,9 +404,10 @@ class ApiController extends Controller
      *
      * @return string
      */
-    function getCompassDirection($bearing) {
+    function getCompassDirection($bearing)
+    {
         $tmp = round($bearing / 22.5);
-        switch($tmp) {
+        switch ($tmp) {
             case 1:
                 $direction = "NNE";
                 break;
@@ -437,35 +468,36 @@ class ApiController extends Controller
      *
      * @return bool
      */
-    private function contains($lat, $lon, $latlons){
+    private function contains($lat, $lon, $latlons)
+    {
         $_vertices = explode(':', $latlons);
         $lastPoint = $_vertices[count($_vertices) - 1];
         $lastPointLat = doubleval(explode(',', $lastPoint)[0]);
         $lastPointLon = $this->properLon(doubleval(explode(',', $lastPoint)[1]));
-        $lastPointLat = $lastPointLat/100;
-        $lastPointLon = $lastPointLon/100;
+        $lastPointLat = $lastPointLat / 100;
+        $lastPointLon = $lastPointLon / 100;
 
         $isInside = false;
         $x = $lon;
-        foreach ($_vertices as $point){
+        foreach ($_vertices as $point) {
             $pointLat = doubleval(explode(',', $point)[0]);
             $pointLon = doubleval(explode(',', $point)[1]);
             $pointLon = $this->properLon($pointLon);
 
-            $pointLat = $pointLat/100;
-            $pointLon = $pointLon/100;
+            $pointLat = $pointLat / 100;
+            $pointLon = $pointLon / 100;
 
             $x1 = $lastPointLon;
             $x2 = $pointLon;
             $dx = $x2 - $x1;
 
-            if (abs($dx) > 180.0){
-                if ($x > 0){
+            if (abs($dx) > 180.0) {
+                if ($x > 0) {
                     while ($x1 < 0)
                         $x1 += 360;
                     while ($x2 < 0)
                         $x2 += 360;
-                }else{
+                } else {
                     while ($x1 > 0)
                         $x1 -= 360;
                     while ($x2 > 0)
@@ -474,7 +506,7 @@ class ApiController extends Controller
                 $dx = $x2 - $x1;
             }
 
-            if (($x1 <= $x && $x2 > $x) || ($x1 >= $x && $x2 < $x)){
+            if (($x1 <= $x && $x2 > $x) || ($x1 >= $x && $x2 < $x)) {
                 $grad = ($pointLat - $lastPointLat) / $dx;
                 $intersectAtLat = $lastPointLat + (($x - $x1) * $grad);
                 if ($intersectAtLat > $lat)
@@ -493,8 +525,9 @@ class ApiController extends Controller
      *
      * @return mixed
      */
-    private function properLon($lon){
-        if($lon < 0) return $lon;
+    private function properLon($lon)
+    {
+        if ($lon < 0) return $lon;
         else return ($lon * -1);
     }
 
@@ -506,7 +539,8 @@ class ApiController extends Controller
      *
      * @return bool
      */
-    private function isOneHourOld($unix_timestamp){
+    private function isOneHourOld($unix_timestamp)
+    {
         $cd = new \DateTime(gmdate("Y-m-d H:i:s", intval($unix_timestamp)));
         $now = new \DateTime(gmdate("Y-m-d H:i:s"));
         $diff = $now->getTimestamp() - $cd->getTimestamp();
@@ -520,9 +554,8 @@ class ApiController extends Controller
      *
      * @return bool
      */
-    private function isNear($distance){
+    private function isNear($distance)
+    {
         return $distance <= self::ALLOWED_MILES;
     }
-
-
 }
