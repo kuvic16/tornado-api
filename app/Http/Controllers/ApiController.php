@@ -168,16 +168,16 @@ class ApiController extends Controller
     /**
      * Calculate bearing range
      * 
-     * @param $bearing | int
+     * @param int $bearing
      * 
      * @return string
      */
     private function getBearingRange($bearing)
     {
         if ($bearing > 10) {
-            return ($bearing - 10) . " - " . ($bearing + 10);
+            return ($bearing - 10) . "-" . ($bearing + 10);
         } else {
-            return (350 + $bearing) . " - " . ($bearing + 10);
+            return (350 + $bearing) . "-" . ($bearing + 10);
         }
     }
 
