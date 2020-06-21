@@ -119,8 +119,7 @@ class ApiController extends Controller
                                 'size'      => $report->magnitude,
                                 'remarks'   => $remarks,
                                 'distance'  => $distance,
-                                'range'     => $bearing
-                                //'range'     => $this->getBearingRange($bearing)
+                                'range'     => $this->getBearingRange($bearing)
                             ];
                             array_push($response, $obj);
                         }
@@ -148,8 +147,7 @@ class ApiController extends Controller
                                     'event'    => $event,
                                     'remarks'  => $remarks,
                                     'distance' => $distance,
-                                    'range'    => $bearing
-                                    //'range'    => $this->getBearingRange($bearing)
+                                    'range'    => $this->getBearingRange($bearing)
                                 ];
                                 if ($size > 0) {
                                     $obj['size'] = $size;
@@ -204,7 +202,7 @@ class ApiController extends Controller
                             "id"          => $report->object_id,
                             "distance"    => $cObj['distance'],
                             "range"       => $cObj['range'],
-                            "bearings"    => $cObj['bearings'],
+                            //"bearings"    => $cObj['bearings'],
                             "ProbHail"    => $report->prob_hail . '%',
                             "ProbTor"     => $report->prob_tor . '%',
                             "ProbWind"    => $report->prob_wind . '%',
