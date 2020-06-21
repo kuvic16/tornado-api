@@ -213,7 +213,7 @@ class ApiController extends Controller
                     }
                 }
             }
-            //$this->shortenDistanceRange($response);
+            $response = $this->shortenDistanceRange($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
@@ -280,10 +280,23 @@ class ApiController extends Controller
         ];
     }
 
+    /**
+     * Shorten dinstance range by finding out overlapping
+     * 
+     * @param array $reports
+     * 
+     * @return array
+     */
     private function shortenDistanceRange($reports)
     {
-        foreach ($reports as $reportX) {
-            foreach ($reports as $reportY) {
+        //var_dump($reports[0]);
+        //$reports[3]['range'] = "210-215";
+        //$reports[0]['range'] = "214-230";
+        //die;
+        for ($i = 0; $i < count($reports); $i++) {
+            for ($j = 0; $j < count($reports); $j++) {
+                $reportX = $reports[$i];
+                $reportY = $reports[$j];
                 if ($reportX['id'] != $reportY['id']) {
                     $rangesX = array_map('intval', explode('-', $reportX['range']));
                     $rangesY = array_map('intval', explode('-', $reportY['range']));
@@ -302,16 +315,20 @@ class ApiController extends Controller
                         $minY = $rangesY[0];
                     }
 
-                    if ($minX >= $minY && $minX <= $minY) {
+                    if ($minX > $minY && $minX < $maxY) {
+                        $newMinX = $maxY;
+                        $newMaxX = $maxX;
+                        if ($maxX < $maxY) {
+                            $newMaxX = $maxY;
+                        }
+                        $reports[$i]['range'] = "$newMinX-$newMaxX";
+                        //var_dump($reports[$i]);
+                        //die;
                     }
-
-
-                    //var_dump($ranges);
-                    die;
-                    //if($reportX[''])
                 }
             }
         }
+        return $reports;
     }
 
 
