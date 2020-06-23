@@ -213,7 +213,7 @@ class ApiController extends Controller
                     }
                 }
             }
-            $response = $this->shortenDistanceRange($response);
+            //$response = $this->shortenDistanceRange($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
