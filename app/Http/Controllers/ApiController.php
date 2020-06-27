@@ -158,6 +158,7 @@ class ApiController extends Controller
                     }
                 }
             }
+            $response = $this->shortenDistanceRange($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
@@ -289,45 +290,128 @@ class ApiController extends Controller
      */
     private function shortenDistanceRange($reports)
     {
-        //var_dump($reports[0]);
-        //$reports[3]['range'] = "210-215";
-        //$reports[0]['range'] = "214-230";
-        //die;
-        for ($i = 0; $i < count($reports); $i++) {
-            for ($j = 0; $j < count($reports); $j++) {
-                $reportX = $reports[$i];
-                $reportY = $reports[$j];
-                if ($reportX['id'] != $reportY['id']) {
-                    $rangesX = array_map('intval', explode('-', $reportX['range']));
-                    $rangesY = array_map('intval', explode('-', $reportY['range']));
 
-                    $maxX = $rangesX[0];
-                    $minX = $rangesX[1];
-                    if ($minX > $maxX) {
-                        $maxX = $rangesX[1];
-                        $minX = $rangesX[0];
-                    }
+        // $reports = [];
+        // array_push($reports, ["id" => "328579", "distance" => 18, "range" => "76-155"]);
+        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "89-98"]);
+        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "55-118"]);
+        // array_push($reports, ["id" => "328577", "distance" => 24, "range" => "56-66"]);
+        // array_push($reports, ["id" => "328319", "distance" => 7, "range"  => "66-114"]);
 
-                    $maxY = $rangesY[0];
-                    $minY = $rangesY[1];
-                    if ($minY > $maxY) {
-                        $maxY = $rangesY[1];
-                        $minY = $rangesY[0];
-                    }
+        // array_push($reports, ["id" => "328562", "distance" => 1, "range" => "100-120"]);
+        // array_push($reports, ["id" => "328577", "distance" => 2, "range" => "80-140"]);
+        // array_push($reports, ["id" => "328319", "distance" => 3, "range"  => "60-160"]);
 
-                    if ($minX > $minY && $minX < $maxY) {
-                        $newMinX = $maxY;
-                        $newMaxX = $maxX;
-                        if ($maxX < $maxY) {
-                            $newMaxX = $maxY;
-                        }
-                        $reports[$i]['range'] = "$newMinX-$newMaxX";
-                        //var_dump($reports[$i]);
-                        //die;
-                    }
-                }
+        if (count($reports) == 0) return [];
+
+        usort($reports, function ($first, $second) {
+            return $first['distance'] > $second['distance'];
+        });
+
+        $reports[0]['cancel'] = false;
+        $ranges = array_map('intval', explode('-', $reports[0]['range']));
+        $max = $ranges[0];
+        $min = $ranges[1];
+        if ($min > $max) {
+            $max = $ranges[1];
+            $min = $ranges[0];
+        }
+
+        $duplicates = [];
+        for ($i = 1; $i < count($reports); $i++) {
+            $reportX = $reports[$i];
+            $rangesX = array_map('intval', explode('-', $reportX['range']));
+
+            $maxX = $rangesX[0];
+            $minX = $rangesX[1];
+            if ($minX > $maxX) {
+                $maxX = $rangesX[1];
+                $minX = $rangesX[0];
+            }
+
+            $reports[$i]['cancel'] = false;
+            if ($minX >= $min && $maxX <= $max) {
+                $reports[$i]['cancel'] = true;
+                continue;
+            }
+
+            if ($minX < $min && $maxX <= $max) {
+                $reports[$i]['range'] =  "$minX-" . ($min - 1);
+                $min = $minX;
+                continue;
+            }
+
+            if ($minX >= $min && $maxX > $max) {
+                $reports[$i]['range'] = ($max + 1) . "-$maxX";
+                $max = $maxX;
+                continue;
+            }
+
+            if ($minX < $min && $maxX > $max) {
+                $reports[$i]['range'] =  "$minX-" . ($min - 1);
+                $min = $minX;
+                array_push($duplicates, $reports[$i]);
+
+
+                $reports[$i]['range'] = ($max + 1) . "-$maxX";
+                $max = $maxX;
+                continue;
             }
         }
+
+        // var_dump($reports);
+        // die;
+
+        $reports = array_merge($reports, $duplicates);
+        usort($reports, function ($first, $second) {
+            return $first['distance'] > $second['distance'];
+        });
+        // var_dump($reports);
+        // die;
+
+        $reports = array_filter($reports, function ($item) {
+            return $item['cancel'] === false;
+        });
+
+
+        // for ($i = 0; $i < count($reports); $i++) {
+        //     for ($j = 0; $j < count($reports); $j++) {
+        //         $reportX = $reports[$i];
+        //         $reportY = $reports[$j];
+        //         if ($reportX['id'] != $reportY['id']) {
+        //             $rangesX = array_map('intval', explode('-', $reportX['range']));
+        //             $rangesY = array_map('intval', explode('-', $reportY['range']));
+
+        //             $maxX = $rangesX[0];
+        //             $minX = $rangesX[1];
+        //             if ($minX > $maxX) {
+        //                 $maxX = $rangesX[1];
+        //                 $minX = $rangesX[0];
+        //             }
+
+        //             $maxY = $rangesY[0];
+        //             $minY = $rangesY[1];
+        //             if ($minY > $maxY) {
+        //                 $maxY = $rangesY[1];
+        //                 $minY = $rangesY[0];
+        //             }
+
+        //             if ($minX > $minY && $minX < $maxY) {
+        //                 $newMinX = $maxY;
+        //                 $newMaxX = $maxX;
+        //                 if ($maxX < $maxY) {
+        //                     $newMaxX = $maxY;
+        //                 }
+        //                 $reports[$i]['range'] = "$newMinX-$newMaxX";
+        //                 //var_dump($reports[$i]);
+        //                 //die;
+        //             }
+        //         }
+        //     }
+        // }
+
+        //var_dump($reports);
+        //die;
         return $reports;
     }
 
