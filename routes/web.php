@@ -22,4 +22,5 @@ Route::get('/map', function () {
 });
 //https://weathervision.app/api/v1/uid=(UID here),(lat),(lon)
 Route::get('/api/v1', 'ApiController@getReports');
-Route::get('/api/test', 'ApiController@test');
+Route::get('/api/v1/test', 'TestApiController@getReports');
+//Route::get('/api/test', 'ApiController@test');
