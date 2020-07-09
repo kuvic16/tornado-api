@@ -291,11 +291,11 @@ class TestApiController extends Controller
     private function shortenDistanceRange($reports)
     {
 
-        // $reports = [];
-        // array_push($reports, ["id" => "328579", "distance" => 18, "range" => "76-155"]);
-        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "89-98"]);
-        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "55-118"]);
-        // array_push($reports, ["id" => "328577", "distance" => 24, "range" => "56-66"]);
+        //$reports = [];
+        //array_push($reports, ["id" => "328579", "distance" => 18, "range" => "298-11"]);
+        //array_push($reports, ["id" => "328562", "distance" => 34, "range" => "21-47"]);
+        //array_push($reports, ["id" => "328562", "distance" => 34, "range" => "110-120"]);
+        //array_push($reports, ["id" => "328577", "distance" => 45, "range" => "100-130"]);
         // array_push($reports, ["id" => "328319", "distance" => 7, "range"  => "66-114"]);
 
 
@@ -324,6 +324,8 @@ class TestApiController extends Controller
             $max = $max + $min;
             $min = $tmp;
         }
+        //var_dump($min . "-" . $max);
+        // die;
 
         $duplicates = [];
         for ($i = 1; $i < count($reports); $i++) {
@@ -340,28 +342,34 @@ class TestApiController extends Controller
                 $maxX = $maxX + $minX;
                 $minX = $tmp;
             }
+            //var_dump($minX . "-" . $maxX);
+            //die;
 
             $reports[$i]['cancel'] = false;
             if ($minX >= $min && $maxX <= $max) {
                 $reports[$i]['cancel'] = true;
+                //var_dump("1");
                 continue;
             }
 
-            if ($minX < $min && $maxX <= $max) {
+            if ($minX < $min && ($maxX >= $min && $maxX <= $max)) {
                 $reports[$i]['range'] =  "$minX-" . ($min - 1);
                 $min = $minX;
+                //var_dump("2");
                 continue;
             }
 
-            if ($minX >= $min && $maxX > $max) {
+            if (($minX >= $min && $minX <= $max) && $maxX > $max) {
                 $reports[$i]['range'] = ($max + 1) . "-$maxX";
                 $max = $maxX;
+                //var_dump("3");
                 continue;
             }
 
             if ($minX < $min && $maxX > $max) {
                 $reports[$i]['range'] =  "$minX-" . ($min - 1);
                 $min = $minX;
+                //var_dump("4");
                 array_push($duplicates, $reports[$i]);
 
 
@@ -372,7 +380,7 @@ class TestApiController extends Controller
         }
 
         // var_dump($reports);
-        // die;
+        //die;
 
         $reports = array_merge($reports, $duplicates);
         usort($reports, function ($first, $second) {
