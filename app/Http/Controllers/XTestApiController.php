@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  * Class ApiController
  * @package App\Http\Controllers
  */
-class TestApiController extends Controller
+class XTestApiController extends Controller
 {
     const STORM_REPORT = "STORM_REPORT";
     const CIMMS_REPORT = "CIMMS_REPORT";
@@ -42,25 +42,9 @@ class TestApiController extends Controller
      *
      * @return void
      */
-    public function overlapping(Request $request)
+    public function test()
     {
-        $response = [
-            'ranges'  => "",
-            'results' => []
-        ];
-
-        if (isset($request->ranges) && !empty($request->ranges)) {
-            $response['ranges'] = $request->ranges;
-            $ranges = explode("\n", $request->ranges);
-            $reports = [];
-            foreach ($ranges as $range) {
-                $fields = explode(",", trim($range));
-                array_push($reports, ["distance" => trim($fields[0]), "range" => trim($fields[1]) . "-" . trim($fields[2])]); // 100-150
-            }
-
-            $response['results'] = $this->shortenDistanceRange($reports);
-        }
-        return view('overlapping', compact('response'));
+        $this->reportPullService->run();
     }
 
     /**
@@ -304,22 +288,137 @@ class TestApiController extends Controller
      * 
      * @return array
      */
+    private function XshortenDistanceRange($reports)
+    {
+
+        //$reports = [];
+        //array_push($reports, ["id" => "328579", "distance" => 18, "range" => "298-11"]);
+        //array_push($reports, ["id" => "328562", "distance" => 34, "range" => "21-47"]);
+        array_push($reports, ["id" => "328562", "distance" => 14, "range" => "10-11"]);
+        array_push($reports, ["id" => "328562", "distance" => 34, "range" => "340-11"]);
+        array_push($reports, ["id" => "328577", "distance" => 45, "range" => "302-345"]);
+        // array_push($reports, ["id" => "328319", "distance" => 7, "range"  => "66-114"]);
+
+
+        // array_push($reports, ["id" => "328562", "distance" => 1, "range" => "100-120"]);
+        // array_push($reports, ["id" => "328562", "distance" => 1, "range" => "90-20"]);
+        // array_push($reports, ["id" => "328577", "distance" => 2, "range" => "80-140"]);
+        // array_push($reports, ["id" => "328319", "distance" => 3, "range"  => "60-160"]);
+
+        if (count($reports) == 0) return [];
+
+        //var_dump($reports);
+        //die;
+        usort($reports, function ($first, $second) {
+            return $first['distance'] > $second['distance'];
+        });
+
+        $reports[0]['cancel'] = false;
+        $ranges = array_map('intval', explode('-', $reports[0]['range']));
+        $max = $ranges[0];
+        $min = $ranges[1];
+        if ($min > $max) {
+            $max = $ranges[1];
+            $min = $ranges[0];
+        } else {
+            $tmp = $max;
+            $max = $max + $min;
+            $min = $tmp;
+        }
+        //var_dump($min . "-" . $max);
+        // die;
+
+        $duplicates = [];
+        for ($i = 1; $i < count($reports); $i++) {
+            $reportX = $reports[$i];
+            $rangesX = array_map('intval', explode('-', $reportX['range']));
+
+            $maxX = $rangesX[0];
+            $minX = $rangesX[1];
+            if ($minX > $maxX) {
+                $maxX = $rangesX[1];
+                $minX = $rangesX[0];
+            } else {
+                $tmp = $maxX;
+                $maxX = $maxX + $minX;
+                $minX = $tmp;
+            }
+            //var_dump($minX . "-" . $maxX);
+            //die;
+
+            $reports[$i]['cancel'] = false;
+            if ($minX >= $min && $maxX <= $max) {
+                $reports[$i]['cancel'] = true;
+                var_dump("1");
+                continue;
+            }
+
+            if ($minX < $min && ($maxX >= $min && $maxX <= $max)) {
+                $reports[$i]['range'] =  "$minX-" . ($min - 1);
+                //$min = $minX;
+                var_dump("2");
+                continue;
+            }
+
+            if (($minX >= $min && $minX <= $max) && $maxX > $max) {
+                $reports[$i]['range'] = ($max + 1) . "-$maxX";
+                //$max = $maxX;
+                var_dump("3");
+                continue;
+            }
+
+            if ($minX < $min && $maxX > $max) {
+                $reports[$i]['range'] =  "$minX-" . ($min - 1);
+                //$min = $minX;
+                var_dump("4");
+                array_push($duplicates, $reports[$i]);
+
+
+                $reports[$i]['range'] = ($max + 1) . "-$maxX";
+                //$max = $maxX;
+                continue;
+            }
+
+            if ($minX < $min) $min = $minX;
+            if ($maxX > $max) $max = $maxX;
+            var_dump($min . "-" . $max);
+        }
+
+        var_dump($reports);
+        die;
+
+        $reports = array_merge($reports, $duplicates);
+        usort($reports, function ($first, $second) {
+            return $first['distance'] > $second['distance'];
+        });
+
+
+        $response = [];
+        foreach ($reports as $report) {
+            if ($report['cancel'] === false) {
+                unset($report['cancel']);
+                array_push($response, $report);
+            }
+        }
+        return $response;
+    }
+
     private function shortenDistanceRange($reports)
     {
         // 100-150, 200-250, 300-350, 10-400
         // 10-99,100-150, 151-199, 200-250 
 
-        // $reports = [];
-        // //array_push($reports, ["distance" => 14, "range" => "100-150"]); // 100-150
-        // array_push($reports, ["distance" => 18, "range" => "40-60"]); // 40-60
-        // array_push($reports, ["distance" => 34, "range" => "50-70"]); // 61-70
-        // array_push($reports, ["distance" => 34, "range" => "60-71"]); // 71-71
-        // array_push($reports, ["distance" => 40, "range" => "72-90"]); // 72-90 
-        // array_push($reports, ["distance" => 41, "range" => "40-90"]); //
-        // array_push($reports, ["distance" => 42, "range" => "10-100"]); //10-39, 91-99 
-        // array_push($reports, ["distance" => 43, "range" => "10-100"]); //
+        $reports = [];
+        array_push($reports, ["distance" => 14, "range" => "100-150"]); // 100-150
+        array_push($reports, ["distance" => 18, "range" => "40-60"]); // 40-60
+        array_push($reports, ["distance" => 34, "range" => "50-70"]); // 61-70
+        array_push($reports, ["distance" => 34, "range" => "60-71"]); // 71-71
+        array_push($reports, ["distance" => 40, "range" => "72-90"]); // 72-90 
+        array_push($reports, ["distance" => 41, "range" => "40-90"]); //
+        array_push($reports, ["distance" => 42, "range" => "10-100"]); //10-39, 91-99 
+        array_push($reports, ["distance" => 43, "range" => "10-100"]); //
 
-        // array_push($reports, ["distance" => 14, "range" => "100-150"]); // 101-150
+        //array_push($reports, ["distance" => 14, "range" => "100-150"]); // 101-150
         // array_push($reports, ["distance" => 34, "range" => "200-250"]);
         // array_push($reports, ["distance" => 45, "range" => "10-260"]);
         // array_push($reports, ["distance" => 50, "range"  => "1-270"]);
@@ -428,16 +527,11 @@ class TestApiController extends Controller
                     $nMin = $correctRange[0];
                     $nMax = $correctRange[1];
 
-                    if ($nMin <= $tmpMax && $tmpMax <= $nMax) {
-                        break;
-                    }
-
-                    if ($tmpMin >= $nMin) {
-                        $tmpMin = $nMax + 1;
-                        $prevMin = $nMin;
-                        $prevMax = $nMax;
-                        continue;
-                    }
+                    // if ($tmpMin >= $nMin && $tmpMin <= $nMax) {
+                    //     $tmpMin = $nMax + 1;
+                    //     $prevMin = $nMin;
+                    //     $prevMax = $nMax;
+                    // }
                     // else {
                     //     $tmpMin = $nMax + 1;
                     //     $prevMin = $nMin;
@@ -468,14 +562,6 @@ class TestApiController extends Controller
 
                         $tmpMin = $nMax + 1;
                     }
-                    elseif ($tmpMax < $nMin) {
-                        $minX = $tmpMin;
-                        $maxX = $tmpMax;
-                        array_push($moreCorrectRanges, [$minX, $maxX]);
-                        $reports[$i]['range'] =  "$minX-$maxX";
-                        array_push($segments, $reports[$i]);
-                        break;
-                    }
 
                     $prevMin = $nMin;
                     $prevMax = $nMax;
@@ -502,7 +588,7 @@ class TestApiController extends Controller
             // });
         }
 
-        //var_dump($correctRanges);
+        var_dump($correctRanges);
         //die;
 
         $reports = array_merge($reports, $duplicates);
@@ -517,11 +603,44 @@ class TestApiController extends Controller
                 array_push($response, $report);
             }
         }
-        //var_dump($response);
-        //die;
+        var_dump($response);
+        die;
 
-        return $response;
+        // return $response;
         //return $reports;
+    }
+
+    private function findMinRange($ranges, $min)
+    {
+        return array_filter($ranges, function ($range) use ($min) {
+            return $range[0] <= $min && $min <= $range[1];
+        });
+    }
+
+    private function findOverlapRange($ranges, $min, $max)
+    {
+        $result = [
+            'minRange' => [],
+            'maxRange' => [],
+            'minValue' => null,
+            'maxValue' => null
+        ];
+        if (empty($ranges)) {
+            return $result;
+        }
+
+        $result['minRange'] = array_filter($ranges, function ($range) use ($min) {
+            return $range[0] <= $min && $min <= $range[1];
+        });
+
+        $result['maxRange'] = array_filter($ranges, function ($range) use ($max) {
+            return $range[0] <= $max && $max <= $range[1];
+        });
+
+        $result['minValue'] = $ranges[0][0];
+        $result['maxValue'] = $ranges[count($ranges) - 1][1];
+
+        return $result;
     }
 
     private function getMinMax($range)
