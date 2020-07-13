@@ -306,9 +306,18 @@ class TestApiController extends Controller
 
     private function setCancelExtraPart(&$reports)
     {
+        //var_dump($reports);
+        //die;
         // set cancel for original range
         foreach ($reports as $report) {
             if ($report['extra'] == true && $report['range'] !== $report['min'] . "-" . $report['max']) {
+                $reports = array_map(function ($item) use ($report) {
+                    if ($item['extra'] === false && $item['original_range'] === $report['original_range']) {
+                        $item['cancel'] = true;
+                    }
+                    return $item;
+                }, $reports);
+            } elseif ($report['extra'] == true && $report['cancel'] == true) {
                 $reports = array_map(function ($item) use ($report) {
                     if ($item['extra'] === false && $item['original_range'] === $report['original_range']) {
                         $item['cancel'] = true;
@@ -477,12 +486,17 @@ class TestApiController extends Controller
                     $nMax = $correctRange[1];
 
                     if ($nMin <= $tmpMax && $tmpMax <= $nMax) {
-                        if ($nMax - $prevMax <= 1)
+                        if ($nMin - $prevMax <= 1)
                             break;
                     }
 
+                    if ($nMin <= $tmpMin && $tmpMin <= $nMax && $nMin <= $tmpMax && $tmpMax <= $nMax) {
+                        break;
+                    }
+
                     if ($tmpMin >= $nMin) {
-                        $tmpMin = $nMax + 1;
+                        if ($tmpMin <= $nMax)
+                            $tmpMin = $nMax + 1;
                         $prevMin = $nMin;
                         $prevMax = $nMax;
                         continue;
@@ -541,7 +555,8 @@ class TestApiController extends Controller
         }
 
         $this->sort($correctRanges, 0);
-        //var_dump($correctRanges); die;
+        //var_dump($correctRanges);
+        //die;
 
         $reports = array_merge($reports, $duplicates);
         $this->sort($reports, 'distance');
