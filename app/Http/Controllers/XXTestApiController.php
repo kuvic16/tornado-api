@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  * Class ApiController
  * @package App\Http\Controllers
  */
-class TestApiController extends Controller
+class XXTestApiController extends Controller
 {
     const STORM_REPORT = "STORM_REPORT";
     const CIMMS_REPORT = "CIMMS_REPORT";
@@ -297,42 +297,40 @@ class TestApiController extends Controller
         ];
     }
 
-    private function sort(&$reports, $sortColumn)
+    /**
+     * Shorten dinstance range by finding out overlapping
+     * 
+     * @param array $reports
+     * 
+     * @return array
+     */
+    private function shortenDistanceRange($reports)
     {
-        usort($reports, function ($first, $second) use ($sortColumn) {
-            return $first[$sortColumn] > $second[$sortColumn];
-        });
-    }
+        // 100-150, 200-250, 300-350, 10-400
+        // 10-99,100-150, 151-199, 200-250 
 
-    private function setCancelExtraPart(&$reports)
-    {
-        // set cancel for original range
-        foreach ($reports as $report) {
-            if ($report['extra'] == true && $report['range'] !== $report['min'] . "-" . $report['max']) {
-                $reports = array_map(function ($item) use ($report) {
-                    if ($item['extra'] === false && $item['original_range'] === $report['original_range']) {
-                        $item['cancel'] = true;
-                    }
-                    return $item;
-                }, $reports);
-            }
-        }
+        // $reports = [];
+        // //array_push($reports, ["distance" => 14, "range" => "100-150"]); // 100-150
+        // array_push($reports, ["distance" => 18, "range" => "40-60"]); // 40-60
+        // array_push($reports, ["distance" => 34, "range" => "50-70"]); // 61-70
+        // array_push($reports, ["distance" => 34, "range" => "60-71"]); // 71-71
+        // array_push($reports, ["distance" => 40, "range" => "72-90"]); // 72-90 
+        // array_push($reports, ["distance" => 41, "range" => "40-90"]); //
+        // array_push($reports, ["distance" => 42, "range" => "10-100"]); //10-39, 91-99 
+        // array_push($reports, ["distance" => 43, "range" => "10-100"]); //
 
-        // set cancel for extra part
-        foreach ($reports as $report) {
-            if ($report['consider'] == false && $report['cancel'] == false) {
-                $reports = array_map(function ($item) use ($report) {
-                    if ($item['extra'] === true && $item['original_range'] === $report['original_range']) {
-                        $item['cancel'] = true;
-                    }
-                    return $item;
-                }, $reports);
-            }
-        }
-    }
+        // array_push($reports, ["distance" => 14, "range" => "100-150"]); // 101-150
+        // array_push($reports, ["distance" => 34, "range" => "200-250"]);
+        // array_push($reports, ["distance" => 45, "range" => "10-260"]);
+        // array_push($reports, ["distance" => 50, "range"  => "1-270"]);
+        // array_push($reports, ["distance" => 60, "range" => "10-271"]);
 
-    private function createExtraPartIfMinInLast(&$reports)
-    {
+        // array_push($reports, ["id" => "328562", "distance" => 1, "range" => "90-20"]);
+        // array_push($reports, ["id" => "328577", "distance" => 2, "range" => "80-140"]);
+        // array_push($reports, ["id" => "328319", "distance" => 3, "range"  => "60-160"]);
+
+        if (count($reports) == 0) return [];
+
         $newPart = [];
         for ($i = 0; $i < count($reports); $i++) {
             $report = $reports[$i];
@@ -371,21 +369,16 @@ class TestApiController extends Controller
             $reports[$i]['max'] = $max;
         }
         $reports = array_merge($reports, $newPart);
-    }
 
-    /**
-     * Shorten dinstance range by finding out overlapping
-     * 
-     * @param array $reports
-     * 
-     * @return array
-     */
-    private function shortenDistanceRange($reports)
-    {
-        if (count($reports) == 0) return [];
+        //return $reports;
 
-        $this->createExtraPartIfMinInLast($reports);
-        $this->sort($reports, "distance");
+        //var_dump($reports);
+        //die;
+        usort($reports, function ($first, $second) {
+            return $first['distance'] > $second['distance'];
+        });
+
+
         //var_dump($reports);
         //die;
 
@@ -395,17 +388,21 @@ class TestApiController extends Controller
             $reports[$i]['cancel'] = false;
             if ($reports[$i]['consider'] == false) continue;
 
-            //$range = array_map('intval', explode('-', $reports[$i]['range']));
-            //[$min, $max] = $this->getMinMax($range);
+            //$reportX = $reports[$i];
+            //$rangesX = array_map('intval', explode('-', $reportX['range']));
 
             $min = $reports[$i]['min'];
             $max = $reports[$i]['max'];
+            //[$min, $max] = $this->getMinMax($rangesX);
 
             if (empty($correctRanges)) {
                 array_push($correctRanges, [$min, $max]);
                 continue;
             }
-            $this->sort($correctRanges, 0);
+
+            usort($correctRanges, function ($first, $second) {
+                return $first[0] > $second[0];
+            });
 
 
             $minValue = $correctRanges[0][0];
@@ -477,8 +474,7 @@ class TestApiController extends Controller
                     $nMax = $correctRange[1];
 
                     if ($nMin <= $tmpMax && $tmpMax <= $nMax) {
-                        if ($nMax - $prevMax <= 1)
-                            break;
+                        break;
                     }
 
                     if ($tmpMin >= $nMin) {
@@ -487,6 +483,12 @@ class TestApiController extends Controller
                         $prevMax = $nMax;
                         continue;
                     }
+                    // else {
+                    //     $tmpMin = $nMax + 1;
+                    //     $prevMin = $nMin;
+                    //     $prevMax = $nMax;
+                    //     continue;
+                    // }
 
                     if ($nMin - $prevMax <= 1) {
                         $prevMin = $nMin;
@@ -538,17 +540,19 @@ class TestApiController extends Controller
             if (count($segments) > 0) {
                 $duplicates = array_merge($duplicates, $segments);
             }
+
+            // usort($correctRanges, function ($first, $second) {
+            //     return $first[0] > $second[0];
+            // });
         }
 
-        $this->sort($correctRanges, 0);
-        //var_dump($correctRanges); die;
-
-        $reports = array_merge($reports, $duplicates);
-        $this->sort($reports, 'distance');
-        $this->setCancelExtraPart($reports);
-        //var_dump($reports);
+        //var_dump($correctRanges);
         //die;
 
+        $reports = array_merge($reports, $duplicates);
+        usort($reports, function ($first, $second) {
+            return $first['distance'] > $second['distance'];
+        });
 
         $response = [];
         foreach ($reports as $report) {
@@ -557,7 +561,8 @@ class TestApiController extends Controller
                 array_push($response, $report);
             }
         }
-        //var_dump($response); die;
+        //var_dump($response);
+        //die;
 
         return $response;
         //return $reports;
