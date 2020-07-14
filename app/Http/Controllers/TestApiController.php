@@ -331,6 +331,8 @@ class TestApiController extends Controller
             }
         }
 
+        // var_dump($reports);
+        // die;
         // merge the extra part
         foreach ($reports as $report) {
             if ($report['consider'] == false) {
@@ -339,6 +341,8 @@ class TestApiController extends Controller
                 $max2 = null;
                 $min2 = null;
                 $mergeReport = null;
+                $i1 = null;
+                $i2 = null;
 
                 for ($i = 0; $i < count($reports); $i++) {
                     $item = $reports[$i];
@@ -347,12 +351,12 @@ class TestApiController extends Controller
                         if ($item['no'] == 1) {
                             $max1 =  $max;
                             $min1 = $min;
-                            $reports[$i]['cancel'] = true;
+                            $i1 = $i;
                         } elseif ($item['no'] == 2) {
                             $max2 =  $max;
                             $min2 = $min;
-                            $reports[$i]['cancel'] = true;
                             $mergeReport = $item;
+                            $i2 = $i;
                         }
                     }
                 }
@@ -361,10 +365,15 @@ class TestApiController extends Controller
                         $mergeReport['cancel'] = false;
                         $mergeReport['range'] = "$min1-$max2";
                         array_push($reports, $mergeReport);
+                        $reports[$i1]['cancel'] = true;
+                        $reports[$i2]['cancel'] = true;
                     }
                 }
             }
         }
+        //var_dump($reports);
+        //die;
+
 
         // set cancel for extra part
         foreach ($reports as $report) {
@@ -502,6 +511,13 @@ class TestApiController extends Controller
                         array_push($segments, $reports[$i]);
 
                         $tmpMin = $nMax + 1;
+                    } elseif ($tmpMax < $nMin) {
+                        $minX = $tmpMin;
+                        $maxX = $tmpMax;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+                        break;
                     }
                     $prevMin = $nMin;
                     $prevMax = $nMax;
