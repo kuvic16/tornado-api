@@ -44,6 +44,10 @@ class TestApiController extends Controller
      */
     public function overlapping(Request $request)
     {
+        //$bearing = $this->getBearing(39.429, 99.050, 39.450, 99.050);
+        //var_dump($bearing);
+        //die;
+
         $response = [
             'ranges'  => "",
             'results' => []
@@ -327,6 +331,41 @@ class TestApiController extends Controller
             }
         }
 
+        // merge the extra part
+        foreach ($reports as $report) {
+            if ($report['consider'] == false) {
+                $max1 = null;
+                $min1 = null;
+                $max2 = null;
+                $min2 = null;
+                $mergeReport = null;
+
+                for ($i = 0; $i < count($reports); $i++) {
+                    $item = $reports[$i];
+                    if ($item['cancel'] === false && $item['extra'] === true && $item['original_range'] === $report['original_range']) {
+                        [$min, $max] =  array_map('intval', explode('-', $item['range']));
+                        if ($item['no'] == 1) {
+                            $max1 =  $max;
+                            $min1 = $min;
+                            $reports[$i]['cancel'] = true;
+                        } elseif ($item['no'] == 2) {
+                            $max2 =  $max;
+                            $min2 = $min;
+                            $reports[$i]['cancel'] = true;
+                            $mergeReport = $item;
+                        }
+                    }
+                }
+                if ($max1 >= 0 && $min1 >= 0 && $max2 >= 0 && $min2 >= 0) {
+                    if ($max1 == 359 && $min2 == 0) {
+                        $mergeReport['cancel'] = false;
+                        $mergeReport['range'] = "$min1-$max2";
+                        array_push($reports, $mergeReport);
+                    }
+                }
+            }
+        }
+
         // set cancel for extra part
         foreach ($reports as $report) {
             if ($report['consider'] == false && $report['cancel'] == false) {
@@ -362,18 +401,21 @@ class TestApiController extends Controller
                 $reports[$i]['max'] = 359;
                 $reports[$i]['range'] = "$max-359";
                 $reports[$i]['extra'] = true;
+                $reports[$i]['no'] = 1;
                 array_push($newPart, $reports[$i]);
                 if ($min > 0) {
                     // preparing second part
                     $reports[$i]['min'] = 0;
                     $reports[$i]['max'] = $min;
                     $reports[$i]['range'] = "0-$min";
+                    $reports[$i]['no'] = 2;
                     array_push($newPart, $reports[$i]);
                 }
 
                 // keeping original
                 $reports[$i]['consider'] = false;
                 $reports[$i]['range'] = $reports[$i]['original_range'];
+                $reports[$i]['no'] = 0;
                 $reports[$i]['extra'] = false;
             }
             $reports[$i]['min'] = $min;
@@ -569,10 +611,16 @@ class TestApiController extends Controller
         foreach ($reports as $report) {
             if ($report['cancel'] === false) {
                 unset($report['cancel']);
+                unset($report['consider']);
+                unset($report['extra']);
+                unset($report['original_range']);
+                unset($report['min']);
+                unset($report['max']);
                 array_push($response, $report);
             }
         }
-        //var_dump($response); die;
+        //var_dump($response);
+        //die;
 
         return $response;
         //return $reports;
