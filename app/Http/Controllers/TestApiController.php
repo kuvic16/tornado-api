@@ -67,6 +67,27 @@ class TestApiController extends Controller
         return view('overlapping', compact('response'));
     }
 
+    public function overlapping1(Request $request)
+    {
+        $response = [
+            'ranges'  => "",
+            'results' => []
+        ];
+
+        if (isset($request->ranges) && !empty($request->ranges)) {
+            $response['ranges'] = $request->ranges;
+            $ranges = explode("\n", $request->ranges);
+            $reports = [];
+            foreach ($ranges as $range) {
+                $fields = explode(",", trim($range));
+                array_push($reports, ["distance" => trim($fields[0]), "range" => trim($fields[1]) . "-" . trim($fields[2]), "event" => trim($fields[3])]); // 100-150
+            }
+
+            $response['results'] = $this->shortenDistanceByEvent($reports);
+        }
+        return view('overlapping1', compact('response'));
+    }
+
     /**
      * Get all reports together
      *
@@ -178,7 +199,7 @@ class TestApiController extends Controller
                     }
                 }
             }
-            //$response = $this->shortenDistanceRange($response);
+            $response = $this->shortenDistanceByEvent($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
@@ -642,19 +663,32 @@ class TestApiController extends Controller
         //return $reports;
     }
 
-    private function getMinMax($range)
+    private function shortenDistanceByEvent($reports)
     {
-        $max = $range[0];
-        $min = $range[1];
-        if ($min > $max) {
-            $max = $range[1];
-            $min = $range[0];
-        } else {
-            $tmp = $max;
-            $max = $max + $min;
-            $min = $tmp;
+        // $reports = [];
+        // array_push($reports, ["id" => "328579", "distance" => 18, "range" => "76-155", "event" => "hail"]);
+        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "89-98", "event" => "hail"]);
+        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "55-118", "event" => "tornado"]);
+        // array_push($reports, ["id" => "328577", "distance" => 24, "range" => "56-66", "event" => "hail"]);
+        // array_push($reports, ["id" => "328319", "distance" => 7, "range"  => "66-114", "event" => "tornado"]);
+
+        $hails = [];
+        $tornados = [];
+        foreach ($reports as $report) {
+            if ($report['event'] === 'hail') {
+                array_push($hails, $report);
+            } elseif ($report['event'] === 'tornado') {
+                array_push($tornados, $report);
+            }
         }
-        return [$min, $max];
+
+        $hails = $this->shortenDistanceRange($hails);
+        $tornados = $this->shortenDistanceRange($tornados);
+
+        //var_dump($hails);
+        //var_dump($tornados);
+        //die;
+        return array_merge($hails, $tornados);
     }
 
 
