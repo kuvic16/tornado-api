@@ -364,6 +364,7 @@ class TestApiController extends Controller
                 $mergeReport = null;
                 $i1 = null;
                 $i2 = null;
+                $minmaxBoth = 0;
 
                 for ($i = 0; $i < count($reports); $i++) {
                     $item = $reports[$i];
@@ -373,15 +374,18 @@ class TestApiController extends Controller
                             $max1 =  $max;
                             $min1 = $min;
                             $i1 = $i;
+                            $minmaxBoth = 1;
                         } elseif ($item['no'] == 2) {
                             $max2 =  $max;
                             $min2 = $min;
                             $mergeReport = $item;
                             $i2 = $i;
+                            $minmaxBoth = 2;
                         }
                     }
                 }
-                if ($max1 >= 0 && $min1 >= 0 && $max2 >= 0 && $min2 >= 0) {
+                //if ($max1 >= 0 && $min1 >= 0 && $max2 >= 0 && $min2 >= 0) {
+                if ($minmaxBoth === 2) {
                     if ($max1 == 359 && $min2 == 0) {
                         $mergeReport['cancel'] = false;
                         $mergeReport['range'] = "$min1-$max2";
