@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Report;
 use App\Services\ReportPullService;
-use DB;
-use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -23,35 +21,16 @@ class ApiController extends Controller
     const ALLOWED_MINUTES = 3600;
 
     /**
-     * Report pull service variable
-     *
-     * @var ReportPullService
-     */
-    private $reportPullService;
-
-    /**
      * Initialize the class
      */
     public function __construct(ReportPullService $reportPullService)
     {
-        $this->reportPullService = $reportPullService;
-    }
-
-    /**
-     * Test api for report pull service
-     *
-     * @return void
-     */
-    public function test()
-    {
-        $this->reportPullService->run();
     }
 
     /**
      * Get all reports together
      *
-     * @param $request
-     *
+     * @param Illuminate\Http\Request $request
      * @return array | object
      */
     public function getReports(Request $request)
@@ -88,7 +67,7 @@ class ApiController extends Controller
      * @param $reports
      * @param $lat
      * @param $lon
-     *
+     * 
      * @return array
      */
     public function getStormReports($reports, $lat, $lon)
@@ -158,7 +137,7 @@ class ApiController extends Controller
                     }
                 }
             }
-            //$response = $this->shortenDistanceRange($response);
+            $response = $this->shortenDistanceByEvent($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
@@ -214,7 +193,7 @@ class ApiController extends Controller
                     }
                 }
             }
-            //$response = $this->shortenDistanceRange($response);
+            $response = $this->shortenDistanceRange($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
@@ -282,6 +261,164 @@ class ApiController extends Controller
     }
 
     /**
+     * Sorting the array reference by a column
+     * 
+     * @param array $reports
+     * @param string $sortColumn
+     * 
+     * @return void
+     */
+    private function sort(&$reports, $sortColumn)
+    {
+        usort($reports, function ($first, $second) use ($sortColumn) {
+            return $first[$sortColumn] > $second[$sortColumn];
+        });
+    }
+
+    /**
+     * Setting cancel extra part for generating response
+     * 
+     * @param array $reports
+     * 
+     * @return void
+     */
+    private function setCancelExtraPart(&$reports)
+    {
+        //var_dump($reports);
+        //die;
+        // set cancel for original range
+        foreach ($reports as $report) {
+            if ($report['extra'] == true && $report['range'] !== $report['min'] . "-" . $report['max']) {
+                $reports = array_map(function ($item) use ($report) {
+                    if ($item['extra'] === false && $item['original_range'] === $report['original_range']) {
+                        $item['cancel'] = true;
+                    }
+                    return $item;
+                }, $reports);
+            } elseif ($report['extra'] == true && $report['cancel'] == true) {
+                $reports = array_map(function ($item) use ($report) {
+                    if ($item['extra'] === false && $item['original_range'] === $report['original_range']) {
+                        $item['cancel'] = true;
+                    }
+                    return $item;
+                }, $reports);
+            }
+        }
+
+        // var_dump($reports);
+        // die;
+        // merge the extra part
+        foreach ($reports as $report) {
+            if ($report['consider'] == false) {
+                $max1 = null;
+                $min1 = null;
+                $max2 = null;
+                $min2 = null;
+                $mergeReport = null;
+                $i1 = null;
+                $i2 = null;
+                $minmaxBoth = 0;
+
+                for ($i = 0; $i < count($reports); $i++) {
+                    $item = $reports[$i];
+                    if ($item['cancel'] === false && $item['extra'] === true && $item['original_range'] === $report['original_range']) {
+                        [$min, $max] =  array_map('intval', explode('-', $item['range']));
+                        if ($item['no'] == 1) {
+                            $max1 =  $max;
+                            $min1 = $min;
+                            $i1 = $i;
+                            $minmaxBoth = 1;
+                        } elseif ($item['no'] == 2) {
+                            $max2 =  $max;
+                            $min2 = $min;
+                            $mergeReport = $item;
+                            $i2 = $i;
+                            $minmaxBoth = 2;
+                        }
+                    }
+                }
+                //if ($max1 >= 0 && $min1 >= 0 && $max2 >= 0 && $min2 >= 0) {
+                if ($minmaxBoth === 2) {
+                    if ($max1 == 359 && $min2 == 0) {
+                        $mergeReport['cancel'] = false;
+                        $mergeReport['range'] = "$min1-$max2";
+                        array_push($reports, $mergeReport);
+                        $reports[$i1]['cancel'] = true;
+                        $reports[$i2]['cancel'] = true;
+                    }
+                }
+            }
+        }
+        //var_dump($reports);
+        //die;
+
+
+        // set cancel for extra part
+        foreach ($reports as $report) {
+            if ($report['consider'] == false && $report['cancel'] == false) {
+                $reports = array_map(function ($item) use ($report) {
+                    if ($item['extra'] === true && $item['original_range'] === $report['original_range']) {
+                        $item['cancel'] = true;
+                    }
+                    return $item;
+                }, $reports);
+            }
+        }
+    }
+
+    /**
+     * Create extra part if ranges first part is maximum and last part is minimum
+     * 
+     * @param array $reports
+     * 
+     * @return void
+     */
+    private function createExtraPartIfMinInLast(&$reports)
+    {
+        $newPart = [];
+        for ($i = 0; $i < count($reports); $i++) {
+            $report = $reports[$i];
+            $range = array_map('intval', explode('-', $report['range']));
+
+            $reports[$i]['consider'] = true;
+            $reports[$i]['extra'] = false;
+            $reports[$i]['original_range'] = $reports[$i]['range'];
+
+            $max = $range[0];
+            $min = $range[1];
+            if ($min > $max) {
+                $max = $range[1];
+                $min = $range[0];
+            } else {
+                // preparing first part
+                $reports[$i]['min'] = $max;
+                $reports[$i]['max'] = 359;
+                $reports[$i]['range'] = "$max-359";
+                $reports[$i]['extra'] = true;
+                $reports[$i]['no'] = 1;
+                array_push($newPart, $reports[$i]);
+                if ($min > 0) {
+                    // preparing second part
+                    $reports[$i]['min'] = 0;
+                    $reports[$i]['max'] = $min;
+                    $reports[$i]['range'] = "0-$min";
+                    $reports[$i]['no'] = 2;
+                    array_push($newPart, $reports[$i]);
+                }
+
+                // keeping original
+                $reports[$i]['consider'] = false;
+                $reports[$i]['range'] = $reports[$i]['original_range'];
+                $reports[$i]['no'] = 0;
+                $reports[$i]['extra'] = false;
+            }
+            $reports[$i]['min'] = $min;
+            $reports[$i]['max'] = $max;
+        }
+        $reports = array_merge($reports, $newPart);
+    }
+
+    /**
      * Shorten dinstance range by finding out overlapping
      * 
      * @param array $reports
@@ -290,129 +427,238 @@ class ApiController extends Controller
      */
     private function shortenDistanceRange($reports)
     {
-
-        // $reports = [];
-        // array_push($reports, ["id" => "328579", "distance" => 18, "range" => "76-155"]);
-        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "89-98"]);
-        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "55-118"]);
-        // array_push($reports, ["id" => "328577", "distance" => 24, "range" => "56-66"]);
-        // array_push($reports, ["id" => "328319", "distance" => 7, "range"  => "66-114"]);
-
-        // array_push($reports, ["id" => "328562", "distance" => 1, "range" => "100-120"]);
-        // array_push($reports, ["id" => "328577", "distance" => 2, "range" => "80-140"]);
-        // array_push($reports, ["id" => "328319", "distance" => 3, "range"  => "60-160"]);
-
         if (count($reports) == 0) return [];
 
-        usort($reports, function ($first, $second) {
-            return $first['distance'] > $second['distance'];
-        });
-
-        $reports[0]['cancel'] = false;
-        $ranges = array_map('intval', explode('-', $reports[0]['range']));
-        $max = $ranges[0];
-        $min = $ranges[1];
-        if ($min > $max) {
-            $max = $ranges[1];
-            $min = $ranges[0];
-        }
-
-        $duplicates = [];
-        for ($i = 1; $i < count($reports); $i++) {
-            $reportX = $reports[$i];
-            $rangesX = array_map('intval', explode('-', $reportX['range']));
-
-            $maxX = $rangesX[0];
-            $minX = $rangesX[1];
-            if ($minX > $maxX) {
-                $maxX = $rangesX[1];
-                $minX = $rangesX[0];
-            }
-
-            $reports[$i]['cancel'] = false;
-            if ($minX >= $min && $maxX <= $max) {
-                $reports[$i]['cancel'] = true;
-                continue;
-            }
-
-            if ($minX < $min && $maxX <= $max) {
-                $reports[$i]['range'] =  "$minX-" . ($min - 1);
-                $min = $minX;
-                continue;
-            }
-
-            if ($minX >= $min && $maxX > $max) {
-                $reports[$i]['range'] = ($max + 1) . "-$maxX";
-                $max = $maxX;
-                continue;
-            }
-
-            if ($minX < $min && $maxX > $max) {
-                $reports[$i]['range'] =  "$minX-" . ($min - 1);
-                $min = $minX;
-                array_push($duplicates, $reports[$i]);
-
-
-                $reports[$i]['range'] = ($max + 1) . "-$maxX";
-                $max = $maxX;
-                continue;
-            }
-        }
-
-        // var_dump($reports);
-        // die;
-
-        $reports = array_merge($reports, $duplicates);
-        usort($reports, function ($first, $second) {
-            return $first['distance'] > $second['distance'];
-        });
-        // var_dump($reports);
-        // die;
-
-        $reports = array_filter($reports, function ($item) {
-            return $item['cancel'] === false;
-        });
-
-
-        // for ($i = 0; $i < count($reports); $i++) {
-        //     for ($j = 0; $j < count($reports); $j++) {
-        //         $reportX = $reports[$i];
-        //         $reportY = $reports[$j];
-        //         if ($reportX['id'] != $reportY['id']) {
-        //             $rangesX = array_map('intval', explode('-', $reportX['range']));
-        //             $rangesY = array_map('intval', explode('-', $reportY['range']));
-
-        //             $maxX = $rangesX[0];
-        //             $minX = $rangesX[1];
-        //             if ($minX > $maxX) {
-        //                 $maxX = $rangesX[1];
-        //                 $minX = $rangesX[0];
-        //             }
-
-        //             $maxY = $rangesY[0];
-        //             $minY = $rangesY[1];
-        //             if ($minY > $maxY) {
-        //                 $maxY = $rangesY[1];
-        //                 $minY = $rangesY[0];
-        //             }
-
-        //             if ($minX > $minY && $minX < $maxY) {
-        //                 $newMinX = $maxY;
-        //                 $newMaxX = $maxX;
-        //                 if ($maxX < $maxY) {
-        //                     $newMaxX = $maxY;
-        //                 }
-        //                 $reports[$i]['range'] = "$newMinX-$newMaxX";
-        //                 //var_dump($reports[$i]);
-        //                 //die;
-        //             }
-        //         }
-        //     }
-        // }
-
+        $this->createExtraPartIfMinInLast($reports);
+        $this->sort($reports, "distance");
         //var_dump($reports);
         //die;
-        return $reports;
+
+        $duplicates = [];
+        $correctRanges = [];
+        for ($i = 0; $i < count($reports); $i++) {
+            $reports[$i]['cancel'] = false;
+            if ($reports[$i]['consider'] == false) continue;
+
+            //$range = array_map('intval', explode('-', $reports[$i]['range']));
+            //[$min, $max] = $this->getMinMax($range);
+
+            $min = $reports[$i]['min'];
+            $max = $reports[$i]['max'];
+
+            if (empty($correctRanges)) {
+                array_push($correctRanges, [$min, $max]);
+                continue;
+            }
+            $this->sort($correctRanges, 0);
+
+
+            $minValue = $correctRanges[0][0];
+            $maxValue = $correctRanges[count($correctRanges) - 1][1];
+
+            //var_dump($minValue . "-" . $maxValue);
+
+            if ($max < $minValue || $min > $maxValue) {
+                array_push($correctRanges, [$min, $max]);
+                continue;
+            }
+
+            if ($min < $minValue) {
+                $segments = [];
+                $moreCorrectRanges = [];
+                $tmpMax = $max;
+                $tmpMin = $min;
+                $prevMin = 0;
+                $prevMax = 0;
+                foreach ($correctRanges as $correctRange) {
+                    $nMin = $correctRange[0];
+                    $nMax = $correctRange[1];
+
+                    if ($nMin - $prevMax <= 1) {
+                        $prevMin = $nMin;
+                        $prevMax = $nMax;
+                        $tmpMin = $nMax + 1;
+                        continue;
+                    }
+
+                    if ($tmpMax >= $nMin && $tmpMax <= $nMax) {
+                        $minX = $tmpMin;
+                        $maxX = $nMin - 1;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+                        break;
+                    } elseif ($tmpMax > $nMax) {
+                        $minX = $tmpMin;
+                        $maxX = $nMin - 1;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+
+                        $tmpMin = $nMax + 1;
+                    } elseif ($tmpMax < $nMin) {
+                        $minX = $tmpMin;
+                        $maxX = $tmpMax;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+                        break;
+                    }
+                    $prevMin = $nMin;
+                    $prevMax = $nMax;
+                }
+
+                if ($max > $maxValue) {
+                    $minX = $tmpMin;
+                    $maxX = $max;
+                    array_push($moreCorrectRanges, [$minX, $maxX]);
+                    $reports[$i]['range'] =  "$minX-$maxX";
+                    array_push($segments, $reports[$i]);
+                }
+                //var_dump($moreCorrectRanges);
+                $correctRanges = array_merge($correctRanges, $moreCorrectRanges);
+            } elseif ($min >= $minValue) {
+                $segments = [];
+                $moreCorrectRanges = [];
+                $tmpMax = $max;
+                $tmpMin = $min;
+                $prevMin = 0;
+                $prevMax = $max;
+                foreach ($correctRanges as $correctRange) {
+                    $nMin = $correctRange[0];
+                    $nMax = $correctRange[1];
+
+                    if ($nMin <= $tmpMax && $tmpMax <= $nMax) {
+                        if ($nMin - $prevMax <= 1)
+                            break;
+                    }
+
+                    if ($nMin <= $tmpMin && $tmpMin <= $nMax && $nMin <= $tmpMax && $tmpMax <= $nMax) {
+                        break;
+                    }
+
+                    if ($tmpMin >= $nMin) {
+                        if ($tmpMin <= $nMax)
+                            $tmpMin = $nMax + 1;
+                        $prevMin = $nMin;
+                        $prevMax = $nMax;
+                        continue;
+                    }
+
+                    if ($nMin - $prevMax <= 1) {
+                        $prevMin = $nMin;
+                        $prevMax = $nMax;
+                        $tmpMin = $nMax + 1;
+                        continue;
+                    }
+
+                    if ($tmpMax >= $nMin && $tmpMax <= $nMax) {
+                        $minX = $tmpMin;
+                        $maxX = $nMin - 1;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+                        break;
+                    } elseif ($tmpMax > $nMax) {
+                        $minX = $tmpMin;
+                        $maxX = $nMin - 1;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+
+                        $tmpMin = $nMax + 1;
+                    } elseif ($tmpMax < $nMin) {
+                        $minX = $tmpMin;
+                        $maxX = $tmpMax;
+                        array_push($moreCorrectRanges, [$minX, $maxX]);
+                        $reports[$i]['range'] =  "$minX-$maxX";
+                        array_push($segments, $reports[$i]);
+                        break;
+                    }
+
+                    $prevMin = $nMin;
+                    $prevMax = $nMax;
+                }
+
+                if ($max > $maxValue) {
+                    $minX = $tmpMin;
+                    $maxX = $max;
+                    array_push($moreCorrectRanges, [$minX, $maxX]);
+                    $reports[$i]['range'] =  "$minX-$maxX";
+                    array_push($segments, $reports[$i]);
+                }
+                //var_dump($moreCorrectRanges);
+                $correctRanges = array_merge($correctRanges, $moreCorrectRanges);
+            }
+
+            $reports[$i]['cancel'] = true;
+            if (count($segments) > 0) {
+                $duplicates = array_merge($duplicates, $segments);
+            }
+        }
+
+        $this->sort($correctRanges, 0);
+        //var_dump($correctRanges);
+        //die;
+
+        $reports = array_merge($reports, $duplicates);
+        $this->sort($reports, 'distance');
+        $this->setCancelExtraPart($reports);
+        //var_dump($reports);
+        //die;
+
+
+        $response = [];
+        foreach ($reports as $report) {
+            if ($report['cancel'] === false) {
+                unset($report['cancel']);
+                unset($report['consider']);
+                unset($report['extra']);
+                unset($report['original_range']);
+                unset($report['min']);
+                unset($report['max']);
+                array_push($response, $report);
+            }
+        }
+        //var_dump($response);
+        //die;
+
+        return $response;
+        //return $reports;
+    }
+
+    /**
+     * Shorten distance by event (hail and tornado)
+     * 
+     * @param array $reports
+     * @return array
+     */
+    private function shortenDistanceByEvent($reports)
+    {
+        // $reports = [];
+        // array_push($reports, ["id" => "328579", "distance" => 18, "range" => "76-155", "event" => "hail"]);
+        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "89-98", "event" => "hail"]);
+        // array_push($reports, ["id" => "328562", "distance" => 34, "range" => "55-118", "event" => "tornado"]);
+        // array_push($reports, ["id" => "328577", "distance" => 24, "range" => "56-66", "event" => "hail"]);
+        // array_push($reports, ["id" => "328319", "distance" => 7, "range"  => "66-114", "event" => "tornado"]);
+
+        $hails = [];
+        $tornados = [];
+        foreach ($reports as $report) {
+            if ($report['event'] === 'hail') {
+                array_push($hails, $report);
+            } elseif ($report['event'] === 'tornado') {
+                array_push($tornados, $report);
+            }
+        }
+
+        $hails = $this->shortenDistanceRange($hails);
+        $tornados = $this->shortenDistanceRange($tornados);
+
+        //var_dump($hails);
+        //var_dump($tornados);
+        //die;
+        return array_merge($hails, $tornados);
     }
 
 
