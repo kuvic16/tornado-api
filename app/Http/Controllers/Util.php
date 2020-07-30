@@ -36,6 +36,7 @@ class Util
             $data = self::str_replace_first("\\n- ", ";", 'TIME:' . $data);
             $data = str_replace("\\n- ", ";", $data);
 
+            $labels["MESH"]                                   = "Maximum Estimated Hail Size";
             $labels["ENI Flash Rate"]                         = "Lightning Flash Rate";
             $labels["ENI Flash Density (max in last 30 min)"] = "Lightning Flash Density";
             $labels["Max LLAzShear"]                          = "MAX Low Level Shear";
@@ -82,9 +83,34 @@ class Util
                 }
             }
 
+            $group_formatted["TIME"] = $formatted["TIME"] ?? "";
+
+            $storm["Maximum Estimated Hail Size"] = $formatted["Maximum Estimated Hail Size"] ?? "";
+            $storm["VIL Density"]                 = $formatted["VIL Density"] ?? "";
+            $storm["MAX Low Level Shear"]         = $formatted["MAX Low Level Shear"] ?? "";
+            $storm["Low Level Shear"]             = $formatted["Low Level Shear"] ?? "";
+            $storm["Mid Level Shear"]             = $formatted["Mid Level Shear"] ?? "";
+            $storm["Lightning Flash Rate"]        = $formatted["Lightning Flash Rate"] ?? "";
+            $storm["Lightning Flash Density"]     = $formatted["Lightning Flash Density"] ?? "";
+            $group_formatted["STORM"] = $storm;
+
+            $envir["MLCAPE"]                  = $formatted["MLCAPE"] ?? "";
+            $envir["MLCIN"]                   = $formatted["MLCIN"] ?? "";
+            $envir["SRH 0-1km"]               = $formatted["SRH 0-1km"] ?? "";
+            $envir["MUCAPE"]                  = $formatted["MUCAPE"] ?? "";
+            $envir["Effective Bulk Shear"]    = $formatted["Effective Bulk Shear"] ?? "";
+            $envir["CAPE -10C to -30C"]       = $formatted["CAPE -10C to -30C"] ?? "";
+            $envir["MeanWind 1-3kmAGL"]       = $formatted["MeanWind 1-3kmAGL"] ?? "";
+            $envir["Wetbulb 0C hgt"]          = $formatted["Wetbulb 0C hgt"] ?? "";
+            $envir["PWAT"]                    = $formatted["PWAT"] ?? "";
+            $envir["Vertical Growth Rate"]    = $formatted["Vertical Growth Rate"] ?? "";
+            $group_formatted["Environmental"] = $envir;
+
+
             //var_dump($formatted);
             //die;
-            return $formatted;
+            //return $formatted;
+            return $group_formatted;
         } catch (\Exception $e) {
             return [];
         }
