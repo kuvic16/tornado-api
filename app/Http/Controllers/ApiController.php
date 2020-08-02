@@ -187,7 +187,7 @@ class ApiController extends Controller
                             "ProbTor"     => $report->prob_tor . '%',
                             "ProbWind"    => $report->prob_wind . '%',
                             "mesh"        => $report->mesh,
-                            "description" => $report->remarks
+                            "description" => Util::refactoring_description($report->remarks)
                         ];
                         array_push($response, $obj);
                     }
