@@ -36,7 +36,8 @@ class Report extends Model
         'report_type', 'object_id', 'unix_timestamp', 'latitude', 'longitude',
         'magnitude', 'city', 'county', 'state', 'source', 'tornado', 'funnelcloud',
         'hail', 'hailsize', 'phenom', 'significance', 'office', 'office_id', 'latlon',
-        'prob_hail', 'prob_wind', 'prob_tor', 'remarks'
+        'prob_hail', 'prob_wind', 'prob_tor', 'remarks', 'mesh', 'wind', 'rotation',
+        'windspeed', 'windmeasure'
     ];
 
 
@@ -45,8 +46,7 @@ class Report extends Model
      *
      * @var array
      */
-    protected $hidden = [
-    ];
+    protected $hidden = [];
 
 
     /**
@@ -54,6 +54,5 @@ class Report extends Model
      *
      * @var array
      */
-    protected $casts = [
-    ];
+    protected $casts = [];
 }
