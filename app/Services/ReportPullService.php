@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use DB;
@@ -22,7 +23,8 @@ class ReportPullService
     /*
      * Initialize the class
      */
-    public function __construct(){
+    public function __construct()
+    {
     }
 
     /**
@@ -31,7 +33,8 @@ class ReportPullService
      *
      * @return void
      */
-    public function run(){
+    public function run()
+    {
         Log::info('ReportPullService:: Start');
         $client = new Client();
         $this->pullStormReports($client);
@@ -46,15 +49,16 @@ class ReportPullService
      *
      * @return void
      */
-    public function pullStormReports($client){
-        try{
+    public function pullStormReports($client)
+    {
+        try {
             $url = 'http://rs.allisonhouse.com/feeds/781bb370445428356172366d2f5c0507/lsr.php';
             $response = $this->get($client, $url);
             Report::where('report_type', self::STORM_REPORT)->delete();
-            if(!empty($response)){
-                foreach(preg_split("/((\r?\n)|(\r\n?))/", $response) as $line){
+            if (!empty($response)) {
+                foreach (preg_split("/((\r?\n)|(\r\n?))/", $response) as $line) {
                     $obj = explode(";", $line);
-                    if(count($obj) != 10){
+                    if (count($obj) != 10) {
                         continue;
                     }
                     //var_dump(count($obj));
@@ -71,17 +75,22 @@ class ReportPullService
                     $report->state = $obj[7];
                     $report->source = $obj[8];
                     $report->remarks = $obj[9];
-                    if(strpos($report->event, 'tornado') !== false || strpos($report->event, 'hail') !== false){
-                        $cd = new \DateTime( gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)) );
-                        $now = new \DateTime( gmdate("Y-m-d H:i:s") );
+
+                    if (strpos($report->event, 'wnd') !== false) {
+                        $report->event = "wind";
+                    }
+
+                    if (strpos($report->event, 'tornado') !== false || strpos($report->event, 'hail') !== false || strpos($report->event, 'wind') !== false) {
+                        $cd = new \DateTime(gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)));
+                        $now = new \DateTime(gmdate("Y-m-d H:i:s"));
                         $diff = $now->getTimestamp() - $cd->getTimestamp();
-                        if($diff <= 3600){
+                        if ($diff <= 3600) {
                             $report->save();
                         }
                     }
                 }
             }
-        }catch (\Exception $e){
+        } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
     }
@@ -91,14 +100,15 @@ class ReportPullService
      *
      * @return void
      */
-    public function pullSpotterNetworks($client){
-        try{
+    public function pullSpotterNetworks($client)
+    {
+        try {
             $url = 'https://www.spotternetwork.org/reports';
             $response = $this->post($client, $url, "90993");
             Report::where('report_type', self::SPOTTER_REPORT)->delete();
             $objs = json_decode($response);
-            if($objs && isset($objs->reports)){
-                foreach($objs->reports as $obj){
+            if ($objs && isset($objs->reports)) {
+                foreach ($objs->reports as $obj) {
                     $report = new Report();
                     $report->report_type = self::SPOTTER_REPORT;
                     $report->unix_timestamp = $obj->unix;
@@ -112,10 +122,17 @@ class ReportPullService
                     $report->hail = $obj->hail;
                     $report->hailsize = $obj->hailsize;
                     $report->remarks = $obj->narrative;
+
+                    $report->wind = isset($obj->wind) ? $obj->wind : 0;
+                    $report->rotation = isset($obj->rotation) ? $obj->rotation : 0;
+                    $report->windspeed = isset($obj->windspeed) ? $obj->windspeed : 0;
+                    $report->windmeasure = isset($obj->windmeasure) ? $obj->windmeasure : 0;
+
+
                     $report->save();
                 }
             }
-        }catch (\Exception $e){
+        } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
     }
@@ -125,15 +142,16 @@ class ReportPullService
      *
      * @return void
      */
-    public function pullTornadoWarning($client){
-        try{
+    public function pullTornadoWarning($client)
+    {
+        try {
             $url = 'https://rs.allisonhouse.com/ww.txt';
             $response = $this->get($client, $url);
             Report::where('report_type', self::TORNADO_REPORT)->delete();
-            if(!empty($response)){
-                foreach(preg_split("/((\r?\n)|(\r\n?))/", $response) as $line){
+            if (!empty($response)) {
+                foreach (preg_split("/((\r?\n)|(\r\n?))/", $response) as $line) {
                     $obj = explode(";", $line);
-                    if(count($obj) < 5){
+                    if (count($obj) < 5) {
                         continue;
                     }
                     $report = new Report();
@@ -150,7 +168,7 @@ class ReportPullService
                     $report->save();
                 }
             }
-        }catch (\Exception $e){
+        } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
     }
@@ -160,14 +178,17 @@ class ReportPullService
      *
      * @return void
      */
-    public function pullCimms($client){
-        try{
+    public function pullCimms($client)
+    {
+        try {
             $url = 'https://cimss.ssec.wisc.edu/severe_conv/NOAACIMSS_PROBSEVERE';
             $response = $this->get($client, $url);
             Report::where('report_type', self::CIMMS_REPORT)->delete();
-            if(!empty($response)){
-                $report = null; $newMessage = false; $skip = false;
-                foreach(preg_split("/((\r?\n)|(\r\n?))/", $response) as $line){
+            if (!empty($response)) {
+                $report = null;
+                $newMessage = false;
+                $skip = false;
+                foreach (preg_split("/((\r?\n)|(\r\n?))/", $response) as $line) {
                     if (strpos($line, "Line:") !== false) {
                         $newMessage = true;
                         preg_match("/(?<=ProbHail: )\d*(?=%)/", $line, $hail);
@@ -188,15 +209,15 @@ class ReportPullService
                         $report->remarks = $m[0];
                         $report->latlon = '';
                         continue;
-                    }elseif ($line == 'End:') {
+                    } elseif ($line == 'End:') {
                         $newMessage = false;
                         $report->save();
-                    }elseif($newMessage) {
-                        $report->latlon = empty($report->latlon)? $line : ($report->latlon . ':' . $line);
+                    } elseif ($newMessage) {
+                        $report->latlon = empty($report->latlon) ? $line : ($report->latlon . ':' . $line);
                     }
                 }
             }
-        }catch (\Exception $e){
+        } catch (\Exception $e) {
             Log::error($e->getMessage());
         }
     }
@@ -209,14 +230,16 @@ class ReportPullService
      *
      * @return string
      */
-    private function get($client, $url){
+    private function get($client, $url)
+    {
         try {
             $res = $client->request("GET", $url, [
                 'headers' => [
-                    'User-Agent'   => isset($_SERVER['HTTP_USER_AGENT'])? $_SERVER['HTTP_USER_AGENT'] : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.122 Safari/537.36',
-                ]]);
+                    'User-Agent'   => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.122 Safari/537.36',
+                ]
+            ]);
             return $res->getBody()->getContents();
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error($ex->getMessage());
         }
         return "";
@@ -231,11 +254,12 @@ class ReportPullService
      *
      * @return string
      */
-    private function post($client, $url, $id){
+    private function post($client, $url, $id)
+    {
         try {
             $res = $client->request("POST", $url, [
                 'headers' => [
-                    'User-Agent'   => isset($_SERVER['HTTP_USER_AGENT'])? $_SERVER['HTTP_USER_AGENT'] : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.122 Safari/537.36',
+                    'User-Agent'   => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.122 Safari/537.36',
                     'Content-Type' => 'application/json'
                 ],
                 'body' => json_encode(
@@ -245,7 +269,7 @@ class ReportPullService
                 )
             ]);
             return $res->getBody()->getContents();
-        }catch (\Exception $ex){
+        } catch (\Exception $ex) {
             Log::error($ex->getMessage());
         }
         return "";

@@ -181,6 +181,9 @@ class TestApiController extends Controller
                     } elseif ($report->hail > 0) {
                         $event = 'hail';
                         $size = $report->hailsize;
+                    } elseif (isset($report->wind) && $report->wind > 0) {
+                        $event = 'wind';
+                        $size = $report->windspeed;
                     }
                     if (!empty($event)) {
                         if ($this->isOneHourOld($report->unix_timestamp)) {
