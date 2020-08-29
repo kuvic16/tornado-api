@@ -692,6 +692,7 @@ class TestApiController extends Controller
                 unset($report['original_range']);
                 unset($report['min']);
                 unset($report['max']);
+                unset($report['no']);
                 array_push($response, $report);
             }
         }
