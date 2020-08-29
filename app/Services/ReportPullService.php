@@ -76,15 +76,16 @@ class ReportPullService
                     $report->source = $obj[8];
                     $report->remarks = $obj[9];
 
-                    if (strpos($report->event, 'wnd') !== false) {
+                    if (strpos($report->event, 'wnd') !== false || strpos($report->event, 'wind') !== false) {
                         $report->event = "wind";
                     }
 
+                    $minSeconds = 21600;
                     if (strpos($report->event, 'tornado') !== false || strpos($report->event, 'hail') !== false || strpos($report->event, 'wind') !== false) {
                         $cd = new \DateTime(gmdate("Y-m-d H:i:s", intval($report->unix_timestamp)));
                         $now = new \DateTime(gmdate("Y-m-d H:i:s"));
                         $diff = $now->getTimestamp() - $cd->getTimestamp();
-                        if ($diff <= 3600) {
+                        if ($diff <= $minSeconds) {
                             $report->save();
                         }
                     }

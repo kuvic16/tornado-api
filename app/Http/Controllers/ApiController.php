@@ -644,21 +644,29 @@ class ApiController extends Controller
 
         $hails = [];
         $tornados = [];
+        $winds = [];
         foreach ($reports as $report) {
             if ($report['event'] === 'hail') {
                 array_push($hails, $report);
             } elseif ($report['event'] === 'tornado') {
                 array_push($tornados, $report);
+            } elseif ($report['event'] === 'wind') {
+                array_push($winds, $report);
             }
         }
 
         $hails = $this->shortenDistanceRange($hails);
         $tornados = $this->shortenDistanceRange($tornados);
+        $winds = $this->shortenDistanceRange($winds);
 
         //var_dump($hails);
         //var_dump($tornados);
         //die;
-        return array_merge($hails, $tornados);
+        $results = array_merge($hails, $tornados);
+        $results = array_merge($results, $winds);
+
+        // return array_merge($hails, $tornados);
+        return $results;
     }
 
 
