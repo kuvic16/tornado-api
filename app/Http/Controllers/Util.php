@@ -115,4 +115,22 @@ class Util
             return [];
         }
     }
+
+    /**
+     * Remove first character from a string
+     * 
+     * @return string $data
+     * 
+     * @return string
+     */
+    public static function remove_first_letter($data)
+    {
+        $data = trim($data);
+        if (!empty($data) && strlen($data) > 0) {
+            if (preg_match("/^[a-zA-Z]$/", $data[0])) {
+                $data = substr($data, 1);
+            }
+        }
+        return trim($data);
+    }
 }

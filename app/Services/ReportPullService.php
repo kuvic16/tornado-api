@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Http\Controllers\Util;
 use DB;
 use App\Report;
 use GuzzleHttp\Client;
@@ -78,6 +79,8 @@ class ReportPullService
 
                     if (strpos($report->event, 'wnd') !== false || strpos($report->event, 'wind') !== false) {
                         $report->event = "wind";
+                        $report->magnitude = ($report->magnitude == 'NULL') ? '' : $report->magnitude;
+                        $report->magnitude = Util::remove_first_letter($report->magnitude);
                     }
 
                     $minSeconds = 21600;
