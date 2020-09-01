@@ -76,6 +76,7 @@ class ApiController extends Controller
             $response = [];
             foreach ($reports as $report) {
                 if ($report->report_type == self::STORM_REPORT) {
+                    if ($report->event == 'wind') continue;
                     if ($this->isOneHourOld($report->unix_timestamp)) {
                         $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
