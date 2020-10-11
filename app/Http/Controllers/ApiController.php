@@ -77,7 +77,7 @@ class ApiController extends Controller
             foreach ($reports as $report) {
                 if ($report->report_type == self::STORM_REPORT) {
                     if ($report->event == 'wind') continue;
-                    if ($this->isOneHourOld($report->unix_timestamp)) {
+                    //if ($this->isOneHourOld($report->unix_timestamp)) {
                         $report->longitude = $this->properLon($report->longitude);
                         $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                         if ($this->isNear($distance)) {
@@ -103,7 +103,7 @@ class ApiController extends Controller
                             ];
                             array_push($response, $obj);
                         }
-                    }
+                    //}
                 } elseif ($report->report_type == self::SPOTTER_REPORT) {
                     $event = '';
                     $size = 0;

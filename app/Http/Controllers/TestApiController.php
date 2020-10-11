@@ -212,7 +212,7 @@ class TestApiController extends Controller
                     }
                 }
             }
-            $response = $this->shortenDistanceByEvent($response);
+            //$response = $this->shortenDistanceByEvent($response);
             return $response;
         } catch (\Exception $ex) {
             Log::error('Error: ' . $ex->getMessage());
