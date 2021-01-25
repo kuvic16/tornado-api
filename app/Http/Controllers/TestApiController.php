@@ -261,7 +261,7 @@ class TestApiController extends Controller
                             "ProbHail"    => $report->prob_hail . '%',
                             "ProbTor"     => $report->prob_tor . '%',
                             "ProbWind"    => $report->prob_wind . '%',
-                            "mesh"        => $report->mesh,
+                            "mesh"        => Util::remove_unexpected_character_from_mesh($report->mesh),
                             "description" => Util::refactoring_description($report->remarks)
                         ];
                         array_push($response, $obj);

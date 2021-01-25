@@ -133,4 +133,20 @@ class Util
         }
         return trim($data);
     }
+
+
+    /**
+     * Remove any unexpected characters from mesh
+     * 
+     * @param string $data
+     * 
+     * @return string
+     */
+    public static function remove_unexpected_character_from_mesh($data)
+    {
+        if(!empty($data)) {
+            return str_replace("(flagged)", "", $data);
+        }
+        return "";
+    }
 }
