@@ -96,7 +96,7 @@ class ApiController extends Controller
                             $remarks .= $report->remarks;
                             $obj = [
                                 'event'     => $report->event,
-                                'size'      => $report->magnitude,
+                                'size'      => strval($report->magnitude),
                                 'remarks'   => $remarks,
                                 'distance'  => $distance,
                                 'range'     => $this->getBearingRange($bearing)
