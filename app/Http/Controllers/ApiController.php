@@ -133,7 +133,7 @@ class ApiController extends Controller
                                     'range'    => $this->getBearingRange($bearing)
                                 ];
                                 if ($size > 0) {
-                                    $obj['size'] = $size;
+                                    $obj['size'] = strval($size);
                                 }
                                 array_push($response, $obj);
                             }
