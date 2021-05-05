@@ -184,7 +184,7 @@ class ApiController extends Controller
                     if ($this->isNear($cObj['distance'])) {
                         $obj = [
                             "id"          => $report->object_id,
-                            "distance"    => $cObj['distance'] . "",
+                            "distance"    => $cObj['distance'],
                             "range"       => $cObj['range'],
                             //"bearings"    => $cObj['bearings'],
                             "ProbHail"    => $report->prob_hail . '%',
