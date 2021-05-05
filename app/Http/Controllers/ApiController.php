@@ -96,7 +96,7 @@ class ApiController extends Controller
                             $remarks .= $report->remarks;
                             $obj = [
                                 'event'     => $report->event,
-                                'size'      => strval($report->magnitude),
+                                'size'      => $report->magnitude . "",
                                 'remarks'   => $remarks,
                                 'distance'  => $distance,
                                 'range'     => $this->getBearingRange($bearing)
@@ -133,7 +133,7 @@ class ApiController extends Controller
                                     'range'    => $this->getBearingRange($bearing)
                                 ];
                                 if ($size > 0) {
-                                    $obj['size'] = strval($size);
+                                    $obj['size'] = $size . "";
                                 }
                                 array_push($response, $obj);
                             }
