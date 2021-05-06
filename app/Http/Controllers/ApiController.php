@@ -117,7 +117,7 @@ class ApiController extends Controller
                         $size = $report->windspeed;
                     }
                     if (!empty($event)) {
-                        if ($this->isOneHourOld($report->unix_timestamp)) {
+                        //if ($this->isOneHourOld($report->unix_timestamp)) {
                             $report->longitude = $this->properLon($report->longitude);
                             $distance = $this->distance($lat, $lon, doubleval($report->latitude), doubleval($report->longitude));
                             if ($this->isNear($distance)) {
@@ -137,7 +137,7 @@ class ApiController extends Controller
                                 }
                                 array_push($response, $obj);
                             }
-                        }
+                        //}
                     }
                 }
             }
