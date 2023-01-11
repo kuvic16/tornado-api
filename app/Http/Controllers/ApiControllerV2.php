@@ -433,6 +433,19 @@ class ApiControllerV2 extends Controller
     {
         if (count($reports) == 0) return [];
 
+        $this->sort($reports, "distance");
+
+        $response = [];
+        if(count($reports) > 0){
+            array_push($response, $reports[0]);
+        }
+        return $response;
+    }
+
+    private function shortenDistanceRangeOld($reports)
+    {
+        if (count($reports) == 0) return [];
+
         $this->createExtraPartIfMinInLast($reports);
         $this->sort($reports, "distance");
         //var_dump($reports);
@@ -631,6 +644,7 @@ class ApiControllerV2 extends Controller
         return $response;
         //return $reports;
     }
+
 
     /**
      * Shorten distance by event (hail and tornado)
