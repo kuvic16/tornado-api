@@ -27,3 +27,5 @@ Route::get('/api/v1/test', 'TestApiController@getReports');
 Route::get('/overlapping', 'TestApiController@overlapping');
 Route::get('/overlapping1', 'TestApiController@overlapping1');
 //Route::get('/api/test', 'ApiController@test');
+
+Route::get('/api/v2', 'ApiControllerV2@getReports');
