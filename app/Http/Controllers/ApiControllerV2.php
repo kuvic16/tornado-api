@@ -187,6 +187,7 @@ class ApiControllerV2 extends Controller
                             "distance"    => $cObj['distance'],
                             "range"       => $cObj['range'],
                             //"bearings"    => $cObj['bearings'],
+                            "direction"   => $cObj['direction'],
                             "ProbHail"    => $report->prob_hail . '%',
                             "ProbTor"     => $report->prob_tor . '%',
                             "ProbWind"    => $report->prob_wind . '%',
@@ -254,13 +255,16 @@ class ApiControllerV2 extends Controller
             array_push($bearings, $bearing);
         }
 
+        $direction = "";
         if ($validMinClosest && $validMaxClosest) {
             $range =  $closestMaxRange . '-' . $closestMinRange;
+            $direction = $this->getDirection($closestMaxRange, $closestMinRange);
         } else {
             $range = $minRange . '-' . $maxRange;
+            $direction = $this->getDirection($minRange, $maxRange);
         }
         return [
-            'distance' => $minDistance, 'range' => $range, 'bearings' => $bearings
+            'distance' => $minDistance, 'range' => $range, 'bearings' => $bearings, 'direction' => $direction
         ];
     }
 
@@ -931,5 +935,44 @@ class ApiControllerV2 extends Controller
     private function isNear($distance)
     {
         return $distance <= self::ALLOWED_MILES;
+    }
+
+    /**
+     * Calculate direction from bearing range
+     *
+     * @param $min
+     * @param $max
+     *
+     * @return string
+     */
+    function getDirection($min, $max)
+    {
+        $direction = "";
+        // N - 340/20
+        if($min >= 340 || $max >= 340)  $direction = "N";
+        if($min >= 0  && $max <= 20)  $direction = "N";
+
+        // NE 21-70
+        if($min >= 21  && $max <= 70)  $direction = "NE";
+
+        // E 71-110
+        if($min >= 71  && $max <= 110)  $direction = "E";
+
+        // SE 111-160
+        if($min >= 111  && $max <= 160)  $direction = "SE";
+
+        // S 161 - 200
+        if($min >= 161  && $max <= 200)  $direction = "S";
+
+        // SW 201 - 250
+        if($min >= 201  && $max <= 250)  $direction = "SW";
+
+        // W 251 - 290
+        if($min >= 251  && $max <= 290)  $direction = "W";
+
+        // NW 291 - 339
+        if($min >= 291  && $max <= 339)  $direction = "NW";
+
+        return $direction;
     }
 }
