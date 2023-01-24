@@ -99,7 +99,8 @@ class ApiControllerV2 extends Controller
                                 'size'      => $report->magnitude . "",
                                 'remarks'   => $remarks,
                                 'distance'  => $distance,
-                                'range'     => $this->getBearingRange($bearing)
+                                'range'     => $this->getBearingRange($bearing),
+                                'direction' => $this->getDirection($bearing)    
                             ];
                             array_push($response, $obj);
                         }
@@ -130,7 +131,8 @@ class ApiControllerV2 extends Controller
                                     'event'    => $event,
                                     'remarks'  => $remarks,
                                     'distance' => $distance,
-                                    'range'    => $this->getBearingRange($bearing)
+                                    'range'    => $this->getBearingRange($bearing),
+                                    'direction' => $this->getDirection($bearing)
                                 ];
                                 if ($size > 0) {
                                     $obj['size'] = $size . "";
@@ -258,10 +260,10 @@ class ApiControllerV2 extends Controller
         $direction = "";
         if ($validMinClosest && $validMaxClosest) {
             $range =  $closestMaxRange . '-' . $closestMinRange;
-            $direction = $this->getDirection($closestMaxRange, $closestMinRange);
+            $direction = $this->getDirection(($closestMaxRange + $closestMinRange)/2);
         } else {
             $range = $minRange . '-' . $maxRange;
-            $direction = $this->getDirection($minRange, $maxRange);
+            $direction = $this->getDirection(($minRange + $maxRange)/2);
         }
         return [
             'distance' => $minDistance, 'range' => $range, 'bearings' => $bearings, 'direction' => $direction
@@ -940,38 +942,37 @@ class ApiControllerV2 extends Controller
     /**
      * Calculate direction from bearing range
      *
-     * @param $min
-     * @param $max
+     * @param $avg bearing avg
      *
      * @return string
      */
-    function getDirection($min, $max)
+    function getDirection($avg)
     {
         $direction = "";
         // N - 340/20
-        if($min >= 340 || $max >= 340)  $direction = "N";
-        if($min >= 0  && $max <= 20)  $direction = "N";
+        if($avg >= 340)  $direction = "N";
+        if($avg >= 0  && $avg <= 20)  $direction = "N";
 
         // NE 21-70
-        if($min >= 21  && $max <= 70)  $direction = "NE";
+        if($avg >= 21  && $avg <= 70)  $direction = "NE";
 
         // E 71-110
-        if($min >= 71  && $max <= 110)  $direction = "E";
+        if($avg >= 71  && $avg <= 110)  $direction = "E";
 
         // SE 111-160
-        if($min >= 111  && $max <= 160)  $direction = "SE";
+        if($avg >= 111  && $avg <= 160)  $direction = "SE";
 
         // S 161 - 200
-        if($min >= 161  && $max <= 200)  $direction = "S";
+        if($avg >= 161  && $avg <= 200)  $direction = "S";
 
         // SW 201 - 250
-        if($min >= 201  && $max <= 250)  $direction = "SW";
+        if($avg >= 201  && $avg <= 250)  $direction = "SW";
 
         // W 251 - 290
-        if($min >= 251  && $max <= 290)  $direction = "W";
+        if($avg >= 251  && $avg <= 290)  $direction = "W";
 
         // NW 291 - 339
-        if($min >= 291  && $max <= 339)  $direction = "NW";
+        if($avg >= 291  && $avg <= 339)  $direction = "NW";
 
         return $direction;
     }
