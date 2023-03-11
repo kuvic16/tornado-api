@@ -260,10 +260,10 @@ class ApiControllerV2 extends Controller
         $direction = "";
         if ($validMinClosest && $validMaxClosest) {
             $range =  $closestMaxRange . '-' . $closestMinRange;
-            $direction = $this->getDirection(($closestMaxRange + $closestMinRange)/2);
+            $direction = $this->getDirection($closestMaxRange);
         } else {
             $range = $minRange . '-' . $maxRange;
-            $direction = $this->getDirection(($minRange + $maxRange)/2);
+            $direction = $this->getDirection($minRange);
         }
         return [
             'distance' => $minDistance, 'range' => $range, 'bearings' => $bearings, 'direction' => $direction
