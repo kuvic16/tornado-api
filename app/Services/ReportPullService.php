@@ -185,7 +185,8 @@ class ReportPullService
     public function pullCimms($client)
     {
         try {
-            $url = 'https://cimss.ssec.wisc.edu/severe_conv/NOAACIMSS_PROBSEVERE';
+            //$url = 'https://cimss.ssec.wisc.edu/severe_conv/NOAACIMSS_PROBSEVERE';
+            $url = 'https://cimss.ssec.wisc.edu/severe_conv/NOAACIMSS_PSv3_LOOP';
             $response = $this->get($client, $url);
             Report::where('report_type', self::CIMMS_REPORT)->delete();
             if (!empty($response)) {
